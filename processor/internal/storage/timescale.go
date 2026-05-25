@@ -59,7 +59,7 @@ func (s *Store) SaveSpans(ctx context.Context, spans []*model.SpanEvent) error {
 				$1, $2, $3, $4, $5,
 				$6, $7, $8, $9,
 				$10, $11, $12, $13, $14
-			) ON CONFLICT (id) DO NOTHING`,
+			) ON CONFLICT (id, started_at) DO NOTHING`,
 			span.ID, span.TraceID, nullString(span.ParentID), span.ServiceName, span.OperationName,
 			span.Kind, span.StartedAt, span.EndedAt, span.DurationMs,
 			span.Status, errorType, errorMsg, tags, span.WorkspaceID,
