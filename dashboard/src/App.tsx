@@ -13,7 +13,7 @@ function Layout() {
   if (!token) return <Navigate to="/login" replace />
 
   return (
-    <div className="flex h-screen bg-slate-950 text-white overflow-hidden">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <main className="flex-1 overflow-hidden flex flex-col">
         <Routes>

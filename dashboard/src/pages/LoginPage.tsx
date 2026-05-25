@@ -27,42 +27,48 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <Zap className="w-7 h-7 text-indigo-400" />
-          <span className="text-2xl font-bold text-white">TraceFlow</span>
+    <div className="flex items-center justify-center h-screen w-full p-4">
+      <div className="w-full max-w-sm animate-fade-in" style={{ zIndex: 10 }}>
+        <div className="flex flex-col items-center justify-center gap-3 mb-8">
+          <div style={{
+            background: 'rgba(99, 102, 241, 0.1)',
+            padding: '12px',
+            borderRadius: '16px',
+            boxShadow: '0 0 20px rgba(99, 102, 241, 0.3)'
+          }}>
+            <Zap style={{ width: '32px', height: '32px', color: 'var(--accent-primary)' }} />
+          </div>
+          <span className="text-2xl font-bold text-primary" style={{ letterSpacing: '0.02em' }}>TraceFlow</span>
+          <span className="text-sm text-secondary text-center">Sign in to your workspace</span>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-          <h1 className="text-lg font-semibold text-white">Sign in</h1>
-
+        <form onSubmit={handleSubmit} className="glass-panel p-6" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg p-3">
+            <div className="text-sm p-3" style={{ background: 'var(--error-bg)', color: 'var(--error)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-md)' }}>
               {error}
             </div>
           )}
 
-          <div className="space-y-1">
-            <label className="text-xs text-slate-400">Email</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label className="text-xs text-secondary font-medium" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email Address</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="glass-input"
               placeholder="dev@example.com"
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs text-slate-400">Password</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label className="text-xs text-secondary font-medium" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Password</label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="glass-input"
               placeholder="••••••••"
             />
           </div>
@@ -70,9 +76,10 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium py-2 rounded-lg transition-colors"
+            className="btn-primary"
+            style={{ marginTop: '0.5rem', height: '44px' }}
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? 'Authenticating...' : 'Access Dashboard'}
           </button>
         </form>
       </div>

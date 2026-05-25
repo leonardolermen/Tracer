@@ -1,8 +1,18 @@
-import { statusBg } from '../lib/utils'
+import { statusBgStyle } from '../lib/utils'
 
 export function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${statusBg(status)}`}>
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      padding: '2px 8px',
+      borderRadius: '9999px',
+      fontSize: '0.7rem',
+      fontWeight: 600,
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em',
+      ...statusBgStyle(status)
+    }}>
       {status}
     </span>
   )

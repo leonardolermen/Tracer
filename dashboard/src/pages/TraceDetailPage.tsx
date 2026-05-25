@@ -31,72 +31,91 @@ export function TraceDetailPage() {
   const services = [...new Set(timeline.map(s => s.service_name))]
   const selectedSpan = trace?.spans.find(s => s.id === selected)
 
-  if (loading) return <div className="flex-1 flex items-center justify-center text-slate-500">Loading…</div>
-  if (error) return <div className="flex-1 flex items-center justify-center text-red-400">{error}</div>
+  if (loading) return <div className="flex-1 flex items-center justify-center text-muted">Loading trace details…</div>
+  if (error) return <div className="flex-1 flex items-center justify-center text-error">{error}</div>
   if (!trace) return null
 
   return (
-    <div className="flex-1 overflow-auto p-6">
-      <div className="max-w-6xl mx-auto space-y-4">
-        <div className="flex items-center gap-3">
-          <Link to="/traces" className="text-slate-500 hover:text-slate-300 transition-colors">
-            <ArrowLeft className="w-4 h-4" />
+    <div className="flex-1 overflow-auto p-6 animate-fade-in">
+      <div className="max-w-6xl flex-col gap-4">
+        <div className="flex items-center gap-3 mb-6">
+          <Link to="/traces" style={{ color: 'var(--text-secondary)', transition: 'color 0.2s', padding: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }}>
+            <ArrowLeft style={{ width: '16px', height: '16px' }} />
           </Link>
-          <h1 className="text-xl font-semibold text-white font-mono text-sm">{trace.id}</h1>
+          <h1 className="text-lg font-semibold text-primary font-mono" style={{ letterSpacing: '0.02em', background: 'rgba(255,255,255,0.05)', padding: '4px 12px', borderRadius: 'var(--radius-md)' }}>
+            {trace.id}
+          </h1>
           <StatusBadge status={trace.status} />
         </div>
 
-        <div className="grid grid-cols-4 gap-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
           {[
-            { label: 'Duration', value: formatDuration(trace.duration_ms) },
-            { label: 'Spans', value: trace.span_count },
-            { label: 'Errors', value: trace.error_count },
-            { label: 'Services', value: trace.services?.length ?? 0 },
-          ].map(({ label, value }) => (
-            <div key={label} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-              <div className="text-xs text-slate-500 mb-1">{label}</div>
-              <div className="text-xl font-semibold text-white">{value}</div>
+            { label: 'Total Duration', value: formatDuration(trace.duration_ms) },
+            { label: 'Total Spans', value: trace.span_count },
+            { label: 'Errors', value: trace.error_count, error: trace.error_count > 0 },
+            { label: 'Services Involved', value: trace.services?.length ?? 0 },
+          ].map(({ label, value, error }) => (
+            <div key={label} className="glass-card p-4">
+              <div className="text-xs text-secondary mb-1" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+              <div className="text-2xl font-bold" style={{ color: error ? 'var(--error)' : 'var(--text-primary)' }}>{value}</div>
             </div>
           ))}
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <h2 className="text-sm font-medium text-slate-300 mb-4">Timeline (Gantt)</h2>
-          <div className="flex gap-3 flex-wrap mb-3">
+        <div className="glass-panel p-6 mb-4">
+          <h2 className="text-base font-bold text-primary mb-4">Execution Timeline</h2>
+          <div className="flex gap-4 flex-wrap mb-6" style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: 'var(--radius-sm)' }}>
             {services.map((s, i) => (
-              <div key={s} className="flex items-center gap-1.5 text-xs text-slate-400">
-                <span className="w-2 h-2 rounded-full" style={{ background: serviceColor(i) }} />
+              <div key={s} className="flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: serviceColor(i), boxShadow: `0 0 8px ${serviceColor(i)}88` }} />
                 {s}
               </div>
             ))}
           </div>
-          <div className="space-y-1.5">
+          
+          <div className="flex-col gap-2">
             {timeline.map((span) => {
               const left = totalMs > 0 ? (span.offset_ms / totalMs) * 100 : 0
               const width = totalMs > 0 ? Math.max((span.duration_ms / totalMs) * 100, 0.5) : 0.5
               const svcIdx = services.indexOf(span.service_name)
+              const isSelected = span.span_id === selected
 
               return (
                 <div
                   key={span.span_id}
-                  className="flex items-center gap-2 cursor-pointer group"
-                  style={{ paddingLeft: `${span.depth * 16}px` }}
-                  onClick={() => setSelected(span.span_id === selected ? null : span.span_id)}
+                  className="flex items-center gap-3"
+                  style={{ 
+                    paddingLeft: `${span.depth * 20}px`,
+                    padding: '6px 8px 6px 0',
+                    cursor: 'pointer',
+                    borderRadius: 'var(--radius-sm)',
+                    background: isSelected ? 'rgba(255,255,255,0.05)' : 'transparent',
+                    border: isSelected ? '1px solid var(--border-active)' : '1px solid transparent',
+                    transition: 'all 0.2s'
+                  }}
+                  onClick={() => setSelected(isSelected ? null : span.span_id)}
+                  onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
+                  onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                 >
-                  <div className="w-40 shrink-0 text-xs text-slate-400 truncate group-hover:text-slate-200 transition-colors">
+                  <div className="w-48 text-xs font-medium text-secondary truncate" style={{ paddingLeft: `${span.depth * 16 + 8}px` }}>
                     {span.operation_name.split(' ').slice(-1)[0]}
                   </div>
-                  <div className="flex-1 relative h-5 bg-slate-800 rounded">
+                  <div className="flex-1 relative h-6 rounded" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
                     <div
-                      className="absolute h-full rounded opacity-80"
                       style={{
+                        position: 'absolute',
+                        height: '100%',
+                        borderRadius: '4px',
                         left: `${left}%`,
                         width: `${width}%`,
                         background: serviceColor(svcIdx),
+                        opacity: 0.85,
+                        boxShadow: `0 0 10px ${serviceColor(svcIdx)}40`,
+                        transition: 'opacity 0.2s'
                       }}
                     />
                   </div>
-                  <div className="w-16 text-right text-xs text-slate-500 font-mono shrink-0">
+                  <div className="w-20 text-right text-xs font-mono text-muted">
                     {formatDuration(span.duration_ms)}
                   </div>
                 </div>
@@ -106,29 +125,31 @@ export function TraceDetailPage() {
         </div>
 
         {selectedSpan && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-            <h2 className="text-sm font-medium text-slate-300">Span detail</h2>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><span className="text-slate-500">ID</span><p className="text-slate-200 font-mono text-xs mt-0.5">{selectedSpan.id}</p></div>
-              <div><span className="text-slate-500">Service</span><p className="text-slate-200 mt-0.5">{selectedSpan.service_name}</p></div>
-              <div><span className="text-slate-500">Operation</span><p className="text-slate-200 mt-0.5">{selectedSpan.operation_name}</p></div>
-              <div><span className="text-slate-500">Kind</span><p className="text-slate-200 mt-0.5">{selectedSpan.kind}</p></div>
-              <div><span className="text-slate-500">Duration</span><p className="text-slate-200 mt-0.5">{formatDuration(selectedSpan.duration_ms)}</p></div>
-              <div><span className="text-slate-500">Status</span><div className="mt-0.5"><StatusBadge status={selectedSpan.status} /></div></div>
+          <div className="glass-panel p-6 animate-fade-in" style={{ borderTop: '4px solid var(--accent-primary)' }}>
+            <h2 className="text-base font-bold text-primary mb-4">Span Details: {selectedSpan.operation_name}</h2>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div><span className="text-xs text-secondary uppercase" style={{ letterSpacing: '0.05em' }}>ID</span><p className="font-mono text-xs text-primary mt-1">{selectedSpan.id}</p></div>
+              <div><span className="text-xs text-secondary uppercase" style={{ letterSpacing: '0.05em' }}>Service</span><p className="text-sm font-medium text-primary mt-1">{selectedSpan.service_name}</p></div>
+              <div><span className="text-xs text-secondary uppercase" style={{ letterSpacing: '0.05em' }}>Kind</span><p className="text-sm text-primary mt-1">{selectedSpan.kind}</p></div>
+              <div><span className="text-xs text-secondary uppercase" style={{ letterSpacing: '0.05em' }}>Duration</span><p className="font-mono text-sm text-primary mt-1">{formatDuration(selectedSpan.duration_ms)}</p></div>
+              <div><span className="text-xs text-secondary uppercase" style={{ letterSpacing: '0.05em' }}>Status</span><div className="mt-1"><StatusBadge status={selectedSpan.status} /></div></div>
             </div>
+            
             {selectedSpan.error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                <div className="text-xs text-red-400 font-medium">{selectedSpan.error.type}</div>
-                <div className="text-xs text-red-300 mt-0.5">{selectedSpan.error.message}</div>
+              <div className="p-4 mb-4" style={{ background: 'var(--error-bg)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-md)' }}>
+                <div className="text-xs font-bold text-error uppercase" style={{ letterSpacing: '0.05em' }}>{selectedSpan.error.type}</div>
+                <div className="text-sm text-primary mt-1" style={{ color: 'rgba(239, 68, 68, 0.9)' }}>{selectedSpan.error.message}</div>
               </div>
             )}
+            
             {Object.keys(selectedSpan.tags).length > 0 && (
               <div>
-                <div className="text-xs text-slate-500 mb-2">Tags</div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="text-xs text-secondary uppercase mb-3" style={{ letterSpacing: '0.05em' }}>Metadata Tags</div>
+                <div className="flex flex-wrap gap-2">
                   {Object.entries(selectedSpan.tags).map(([k, v]) => (
-                    <span key={k} className="text-xs bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-slate-300 font-mono">
-                      {k}: {v}
+                    <span key={k} className="text-xs font-mono" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '4px', color: 'var(--text-secondary)' }}>
+                      <span style={{ color: 'var(--accent-primary)' }}>{k}</span>: {v}
                     </span>
                   ))}
                 </div>

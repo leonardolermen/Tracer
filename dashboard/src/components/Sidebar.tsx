@@ -1,7 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { Activity, Server, Bell, LogOut, Zap } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { cn } from '../lib/utils'
 
 const links = [
   { to: '/traces', icon: Activity, label: 'Traces' },
@@ -13,45 +12,104 @@ export function Sidebar() {
   const { workspaceName, logout } = useAuth()
 
   return (
-    <aside className="w-56 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col">
-      <div className="p-4 border-b border-slate-800 flex items-center gap-2">
-        <Zap className="w-5 h-5 text-indigo-400" />
-        <span className="font-semibold text-white text-sm">TraceFlow</span>
+    <aside style={{
+      width: '240px',
+      flexShrink: 0,
+      background: 'rgba(15, 23, 42, 0.4)',
+      backdropFilter: 'blur(20px)',
+      borderRight: '1px solid var(--border-subtle)',
+      display: 'flex',
+      flexDirection: 'column',
+      zIndex: 20
+    }}>
+      <div className="p-4 flex items-center gap-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+        <div style={{
+          background: 'var(--accent-glow)',
+          padding: '6px',
+          borderRadius: '8px',
+          display: 'flex'
+        }}>
+          <Zap style={{ width: '20px', height: '20px', color: 'var(--accent-primary)' }} />
+        </div>
+        <span className="font-semibold text-primary" style={{ letterSpacing: '0.02em' }}>TraceFlow</span>
       </div>
 
       {workspaceName && (
-        <div className="px-4 py-2 text-xs text-slate-500 truncate border-b border-slate-800">
+        <div className="px-4 py-3 text-xs text-secondary" style={{ borderBottom: '1px solid var(--border-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           {workspaceName}
         </div>
       )}
 
-      <nav className="flex-1 p-2 space-y-0.5">
+      <nav className="flex-1 p-3" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         {links.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
-                isActive
-                  ? 'bg-indigo-500/20 text-indigo-300'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              )
-            }
+            style={({ isActive }) => ({
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '10px 12px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              textDecoration: 'none',
+              transition: 'all 0.2s ease',
+              background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+              color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              borderLeft: isActive ? '3px solid var(--accent-primary)' : '3px solid transparent'
+            })}
+            onMouseEnter={(e) => {
+              if (e.currentTarget.style.background === 'transparent') {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.color = 'var(--text-primary)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (e.currentTarget.style.borderLeft === '3px solid transparent') {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }
+            }}
           >
-            <Icon className="w-4 h-4" />
+            <Icon style={{ width: '18px', height: '18px' }} />
             {label}
           </NavLink>
         ))}
       </nav>
 
-      <button
-        onClick={logout}
-        className="m-2 flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
-      >
-        <LogOut className="w-4 h-4" />
-        Sign out
-      </button>
+      <div className="p-3">
+        <button
+          onClick={logout}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 12px',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.875rem',
+            color: 'var(--text-secondary)',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            fontFamily: 'inherit',
+            fontWeight: 500
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+            e.currentTarget.style.color = 'var(--error)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = 'var(--text-secondary)';
+          }}
+        >
+          <LogOut style={{ width: '18px', height: '18px' }} />
+          Sign out
+        </button>
+      </div>
     </aside>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Filter } from 'lucide-react'
+import { Search, Filter, RefreshCw } from 'lucide-react'
 import { api } from '../lib/api'
 import type { Trace } from '../lib/api'
 import { StatusBadge } from '../components/StatusBadge'
@@ -33,85 +33,114 @@ export function TracesPage() {
   useEffect(() => { load() }, [search, statusFilter])
 
   return (
-    <div className="flex-1 overflow-auto p-6">
-      <div className="max-w-6xl mx-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-white">Traces</h1>
-          <button onClick={load} className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+    <div className="flex-1 overflow-auto p-6 animate-fade-in">
+      <div className="max-w-6xl flex-col gap-4">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-xl font-bold text-primary" style={{ letterSpacing: '0.02em' }}>Traces</h1>
+          <button 
+            onClick={load} 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-secondary)',
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.75rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.color = 'var(--text-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+              e.currentTarget.style.color = 'var(--text-secondary)';
+            }}
+          >
+            <RefreshCw style={{ width: '12px', height: '12px' }} />
             Refresh
           </button>
         </div>
 
-        <div className="flex gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+        <div className="flex gap-3 mb-8">
+          <div style={{ position: 'relative', flex: 1, maxWidth: '320px' }}>
+            <Search style={{ position: 'absolute', left: '12px', top: '10px', width: '16px', height: '16px', color: 'var(--text-muted)' }} />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Filter by service…"
-              className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="glass-input"
+              style={{ paddingLeft: '36px' }}
             />
           </div>
-          <div className="relative">
-            <Filter className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+          <div style={{ position: 'relative' }}>
+            <Filter style={{ position: 'absolute', left: '12px', top: '10px', width: '16px', height: '16px', color: 'var(--text-muted)' }} />
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-indigo-500 transition-colors appearance-none"
+              className="glass-input glass-select"
+              style={{ paddingLeft: '36px', paddingRight: '36px', cursor: 'pointer', minWidth: '160px' }}
             >
-              <option value="">All statuses</option>
-              <option value="ok">ok</option>
-              <option value="error">error</option>
-              <option value="timeout">timeout</option>
-              <option value="in_progress">in_progress</option>
+              <option value="" style={{ background: 'var(--bg-dark)' }}>All statuses</option>
+              <option value="ok" style={{ background: 'var(--bg-dark)' }}>ok</option>
+              <option value="error" style={{ background: 'var(--bg-dark)' }}>error</option>
+              <option value="timeout" style={{ background: 'var(--bg-dark)' }}>timeout</option>
+              <option value="in_progress" style={{ background: 'var(--bg-dark)' }}>in_progress</option>
             </select>
           </div>
         </div>
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg p-3">{error}</div>
+          <div className="text-sm p-3 mb-4" style={{ background: 'var(--error-bg)', color: 'var(--error)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-md)' }}>
+            {error}
+          </div>
         )}
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-800 text-xs text-slate-500">
-                <th className="text-left px-4 py-3 font-medium">Trace ID</th>
-                <th className="text-left px-4 py-3 font-medium">Service</th>
-                <th className="text-left px-4 py-3 font-medium">Operation</th>
-                <th className="text-left px-4 py-3 font-medium">Status</th>
-                <th className="text-right px-4 py-3 font-medium">Duration</th>
-                <th className="text-right px-4 py-3 font-medium">Spans</th>
-                <th className="text-right px-4 py-3 font-medium">Started</th>
+        <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <table className="data-table">
+            <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
+              <tr>
+                <th className="text-left">Trace ID</th>
+                <th className="text-left">Service</th>
+                <th className="text-left">Operation</th>
+                <th className="text-left">Status</th>
+                <th className="text-right">Duration</th>
+                <th className="text-right">Spans</th>
+                <th className="text-right">Started</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">Loading…</td>
+                  <td colSpan={7} className="text-center text-muted py-3" style={{ padding: '32px 0' }}>Loading traces…</td>
                 </tr>
               )}
               {!loading && traces.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">No traces found</td>
+                  <td colSpan={7} className="text-center text-muted py-3" style={{ padding: '32px 0' }}>No traces found</td>
                 </tr>
               )}
               {!loading && traces.map(t => (
-                <tr key={t.id} className="border-b border-slate-800/50 hover:bg-slate-800/40 transition-colors">
-                  <td className="px-4 py-3">
-                    <Link to={`/traces/${t.id}`} className="text-indigo-400 hover:text-indigo-300 font-mono text-xs transition-colors">
+                <tr key={t.id}>
+                  <td className="font-mono text-xs">
+                    <Link to={`/traces/${t.id}`} style={{ color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 500 }}>
                       {t.id.slice(0, 20)}…
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-slate-300">{t.root_service}</td>
-                  <td className="px-4 py-3 text-slate-400 max-w-xs truncate">{t.root_operation}</td>
-                  <td className="px-4 py-3"><StatusBadge status={t.status} /></td>
-                  <td className="px-4 py-3 text-right text-slate-300 font-mono">{formatDuration(t.duration_ms)}</td>
-                  <td className="px-4 py-3 text-right text-slate-400">
+                  <td className="text-primary font-medium">{t.root_service}</td>
+                  <td className="text-secondary" style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.root_operation}</td>
+                  <td><StatusBadge status={t.status} /></td>
+                  <td className="text-right font-mono text-primary">{formatDuration(t.duration_ms)}</td>
+                  <td className="text-right text-secondary">
                     {t.span_count}
-                    {t.error_count > 0 && <span className="text-red-400 ml-1">({t.error_count} err)</span>}
+                    {t.error_count > 0 && <span style={{ color: 'var(--error)', marginLeft: '4px' }}>({t.error_count} err)</span>}
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-500 text-xs">{formatDate(t.started_at)}</td>
+                  <td className="text-right text-muted text-xs">{formatDate(t.started_at)}</td>
                 </tr>
               ))}
             </tbody>

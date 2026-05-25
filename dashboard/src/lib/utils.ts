@@ -17,19 +17,19 @@ export function formatDate(iso: string): string {
 
 export function statusColor(status: string): string {
   switch (status) {
-    case 'ok': return 'text-emerald-400'
-    case 'error': return 'text-red-400'
-    case 'timeout': return 'text-amber-400'
-    default: return 'text-slate-400'
+    case 'ok': return 'var(--success)'
+    case 'error': return 'var(--error)'
+    case 'timeout': return 'var(--warning)'
+    default: return 'var(--text-muted)'
   }
 }
 
-export function statusBg(status: string): string {
+export function statusBgStyle(status: string): React.CSSProperties {
   switch (status) {
-    case 'ok': return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-    case 'error': return 'bg-red-500/20 text-red-300 border-red-500/30'
-    case 'timeout': return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-    default: return 'bg-slate-500/20 text-slate-300 border-slate-500/30'
+    case 'ok': return { background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid rgba(16, 185, 129, 0.3)' }
+    case 'error': return { background: 'var(--error-bg)', color: 'var(--error)', border: '1px solid rgba(239, 68, 68, 0.3)' }
+    case 'timeout': return { background: 'rgba(245, 158, 11, 0.15)', color: 'var(--warning)', border: '1px solid rgba(245, 158, 11, 0.3)' }
+    default: return { background: 'rgba(100, 116, 139, 0.15)', color: 'var(--text-secondary)', border: '1px solid rgba(100, 116, 139, 0.3)' }
   }
 }
 
