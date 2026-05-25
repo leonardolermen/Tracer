@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, Filter } from 'lucide-react'
-import { api, Trace } from '../lib/api'
+import { api } from '../lib/api'
+import type { Trace } from '../lib/api'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatDuration, formatDate } from '../lib/utils'
 

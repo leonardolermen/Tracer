@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { TrendingUp, AlertTriangle, Clock } from 'lucide-react'
-import { api, Service } from '../lib/api'
+import { api } from '../lib/api'
+import type { Service } from '../lib/api'
 import { formatDate } from '../lib/utils'
 
 export function ServicesPage() {

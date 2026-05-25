@@ -5,12 +5,13 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from 'recharts'
-import { api, ServiceStats } from '../lib/api'
+import { api } from '../lib/api'
+import type { ServiceStats } from '../lib/api'
 
 export function ServiceDetailPage() {
   const { serviceName } = useParams<{ serviceName: string }>()
   const [stats, setStats] = useState<ServiceStats | null>(null)
-  const [interval, setInterval] = useState('5m')
+  const [granularity, setGranularity] = useState('5m')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -22,12 +23,12 @@ export function ServiceDetailPage() {
     api.serviceStats(serviceName, {
       from: from.toISOString(),
       to: to.toISOString(),
-      interval,
+      interval: granularity,
     })
       .then(setStats)
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
-  }, [serviceName, interval])
+  }, [serviceName, granularity])
 
   const chartData = stats?.series.map(s => ({
     t: new Date(s.timestamp).toLocaleTimeString(),
@@ -50,9 +51,9 @@ export function ServiceDetailPage() {
             {['1m', '5m', '1h', '1d'].map(i => (
               <button
                 key={i}
-                onClick={() => setInterval(i)}
+                onClick={() => setGranularity(i)}
                 className={`px-2.5 py-1 rounded-lg text-xs transition-colors ${
-                  interval === i
+                  granularity === i
                     ? 'bg-indigo-600 text-white'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                 }`}

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react'
-import { api, TraceDetail, TimelineSpan } from '../lib/api'
+import { ArrowLeft } from 'lucide-react'
+import { api } from '../lib/api'
+import type { TraceDetail, TimelineSpan } from '../lib/api'
 import { StatusBadge } from '../components/StatusBadge'
-import { formatDuration, formatDate, serviceColor } from '../lib/utils'
+import { formatDuration, serviceColor } from '../lib/utils'
 
 export function TraceDetailPage() {
   const { traceId } = useParams<{ traceId: string }>()

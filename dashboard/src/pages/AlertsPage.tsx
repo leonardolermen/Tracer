@@ -1,6 +1,6 @@
-import { useEffect, useState, FormEvent } from 'react'
+import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
 import { Plus, Trash2, Bell } from 'lucide-react'
-import { api } from '../lib/api'
 import { formatDate } from '../lib/utils'
 
 interface Alert {
@@ -20,7 +20,6 @@ export function AlertsPage() {
   const [error, setError] = useState('')
 
   async function load() {
-    const res = await api.traces({ limit: 0 }).catch(() => null)
     const { alerts } = await fetch('/api/v1/alerts', {
       headers: { Authorization: `Bearer ${localStorage.getItem('tf_token')}` },
     }).then(r => r.json())
