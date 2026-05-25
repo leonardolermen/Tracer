@@ -11,6 +11,7 @@ services:
       - "5432:5432"
     volumes:
       - timescaledb_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U traceflow"]
       interval: 5s
@@ -79,18 +80,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  dashboard:
-    build:
-      context: ./dashboard
-      dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
-    environment:
-      VITE_API_URL: "http://localhost:3000"
-      VITE_WS_URL: "ws://localhost:3000"
-    depends_on:
-      - api
-    restart: unless-stopped
 
 volumes:
   timescaledb_data:

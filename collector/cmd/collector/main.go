@@ -6,6 +6,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/leonardolermen/tracer/collector/internal/config"
+	"github.com/leonardolermen/tracer/collector/internal/handler"
+	"github.com/leonardolermen/tracer/collector/internal/publisher"
+	"github.com/leonardolermen/tracer/collector/internal/queue"
 )
 
 func main() {
