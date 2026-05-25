@@ -1,0 +1,97 @@
+version: '3.9'
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    environment:
+      POSTGRES_USER: traceflow
+      POSTGRES_PASSWORD: traceflow
+      POSTGRES_DB: traceflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U traceflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  collector:
+    build:
+      context: ./collector
+      dockerfile: Dockerfile
+    ports:
+      - "4317:4317"   # HTTP
+      - "4318:4318/udp" # UDP
+    environment:
+      PORT: "4317"
+      UDP_PORT: "4318"
+      REDIS_URL: "redis://redis:6379"
+      LOG_LEVEL: "info"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  processor:
+    build:
+      context: ./processor
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: "postgres://traceflow:traceflow@timescaledb:5432/traceflow"
+      REDIS_URL: "redis://redis:6379"
+      LOG_LEVEL: "info"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      DATABASE_URL: "postgres://traceflow:traceflow@timescaledb:5432/traceflow"
+      REDIS_URL: "redis://redis:6379"
+      JWT_SECRET: "change-this-in-production"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: "http://localhost:3000"
+      VITE_WS_URL: "ws://localhost:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  timescaledb_data:
+  redis_data:
