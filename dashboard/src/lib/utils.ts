@@ -5,10 +5,11 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs)
 }
 
-export function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`
-  if (ms < 60_000) return `${(ms / 1000).toFixed(2)}s`
-  return `${(ms / 60_000).toFixed(1)}m`
+export function formatDuration(ms: number | string): string {
+  const n = Number(ms) || 0
+  if (n < 1000) return `${Number(n.toFixed(2))}ms`
+  if (n < 60_000) return `${Number((n / 1000).toFixed(2))}s`
+  return `${Number((n / 60_000).toFixed(2))}m`
 }
 
 export function formatDate(iso: string): string {

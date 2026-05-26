@@ -1,11 +1,13 @@
+import React from 'react'
 import { NavLink } from 'react-router-dom'
-import { Activity, Server, Bell, LogOut, Zap } from 'lucide-react'
+import { Activity, Server, Bell, LogOut, Zap, LayoutDashboard } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
-const links = [
-  { to: '/traces', icon: Activity, label: 'Traces' },
-  { to: '/services', icon: Server, label: 'Services' },
-  { to: '/alerts', icon: Bell, label: 'Alerts' },
+const links: { to: string; icon: React.ElementType; label: string; exact: boolean }[] = [
+  { to: '/', icon: LayoutDashboard, label: 'Overview', exact: true },
+  { to: '/traces', icon: Activity, label: 'Traces', exact: false },
+  { to: '/services', icon: Server, label: 'Services', exact: false },
+  { to: '/alerts', icon: Bell, label: 'Alerts', exact: false },
 ]
 
 export function Sidebar() {
@@ -15,7 +17,7 @@ export function Sidebar() {
     <aside style={{
       width: '240px',
       flexShrink: 0,
-      background: 'rgba(15, 23, 42, 0.4)',
+      background: 'rgba(10, 10, 10, 0.6)',
       backdropFilter: 'blur(20px)',
       borderRight: '1px solid var(--border-subtle)',
       display: 'flex',
@@ -41,10 +43,11 @@ export function Sidebar() {
       )}
 
       <nav className="flex-1 p-3" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        {links.map(({ to, icon: Icon, label }) => (
+        {links.map(({ to, icon: Icon, label, exact }) => (
           <NavLink
             key={to}
             to={to}
+            end={exact}
             style={({ isActive }) => ({
               display: 'flex',
               alignItems: 'center',

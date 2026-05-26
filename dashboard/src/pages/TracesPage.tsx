@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Filter, RefreshCw } from 'lucide-react'
+import { Search, Filter, RefreshCw, Hash } from 'lucide-react'
 import { api } from '../lib/api'
 import type { Trace } from '../lib/api'
 import { StatusBadge } from '../components/StatusBadge'
@@ -12,6 +12,7 @@ export function TracesPage() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [traceIdSearch, setTraceIdSearch] = useState('')
 
   async function load() {
     setLoading(true)
@@ -67,8 +68,8 @@ export function TracesPage() {
           </button>
         </div>
 
-        <div className="flex gap-3 mb-8">
-          <div style={{ position: 'relative', flex: 1, maxWidth: '320px' }}>
+        <div className="flex gap-3 mb-8" style={{ flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, maxWidth: '280px', minWidth: '180px' }}>
             <Search style={{ position: 'absolute', left: '12px', top: '10px', width: '16px', height: '16px', color: 'var(--text-muted)' }} />
             <input
               value={search}
@@ -92,6 +93,21 @@ export function TracesPage() {
               <option value="timeout" style={{ background: 'var(--bg-dark)' }}>timeout</option>
               <option value="in_progress" style={{ background: 'var(--bg-dark)' }}>in_progress</option>
             </select>
+          </div>
+          <div style={{ position: 'relative', flex: 1, maxWidth: '280px', minWidth: '180px' }}>
+            <Hash style={{ position: 'absolute', left: '12px', top: '10px', width: '16px', height: '16px', color: 'var(--text-muted)' }} />
+            <input
+              value={traceIdSearch}
+              onChange={e => setTraceIdSearch(e.target.value)}
+              placeholder="Jump to trace ID…"
+              className="glass-input"
+              style={{ paddingLeft: '36px', fontFamily: 'monospace', fontSize: '0.8rem' }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && traceIdSearch.trim()) {
+                  window.location.href = `/traces/${traceIdSearch.trim()}`
+                }
+              }}
+            />
           </div>
         </div>
 

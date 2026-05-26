@@ -57,7 +57,13 @@ export async function listTraces(filters: TraceFilters) {
   const traces = hasMore ? rows.slice(0, safeLimit) : rows
   const nextCursor = hasMore ? traces[traces.length - 1].started_at : null
 
-  return { traces, nextCursor }
+  const { rows: countRows } = await pool.query(
+    `SELECT COUNT(DISTINCT trace_id) AS total FROM spans WHERE ${where}`,
+    params
+  )
+  const total = parseInt(countRows[0].total, 10)
+
+  return { traces, nextCursor, total }
 }
 
 export async function getTrace(traceId: string, workspaceId: string) {

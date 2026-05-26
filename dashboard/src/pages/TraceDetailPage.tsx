@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, FileText } from 'lucide-react'
 import { api } from '../lib/api'
 import type { TraceDetail, TimelineSpan } from '../lib/api'
 import { StatusBadge } from '../components/StatusBadge'
@@ -151,6 +151,48 @@ export function TraceDetailPage() {
                     <span key={k} className="text-xs font-mono" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '4px', color: 'var(--text-secondary)' }}>
                       <span style={{ color: 'var(--accent-primary)' }}>{k}</span>: {v}
                     </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedSpan.logs && selectedSpan.logs.length > 0 && (
+              <div style={{ marginTop: '1rem' }}>
+                <div className="flex items-center gap-2 text-xs text-secondary uppercase mb-3" style={{ letterSpacing: '0.05em' }}>
+                  <FileText style={{ width: 13, height: 13 }} />
+                  Span Logs ({selectedSpan.logs.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {selectedSpan.logs.map((log: any, idx: number) => (
+                    <div key={idx} style={{
+                      background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: 6, padding: '10px 12px',
+                      borderLeft: `3px solid ${
+                        log.level === 'error' ? 'var(--error)' :
+                        log.level === 'warn' ? 'var(--warning)' :
+                        log.level === 'info' ? 'var(--accent-primary)' : 'var(--text-muted)'
+                      }`
+                    }}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-mono font-bold" style={{
+                          color: log.level === 'error' ? 'var(--error)' :
+                                 log.level === 'warn' ? 'var(--warning)' :
+                                 log.level === 'info' ? 'var(--accent-primary)' : 'var(--text-muted)',
+                          textTransform: 'uppercase'
+                        }}>{log.level}</span>
+                        {log.logged_at && <span className="text-xs text-muted font-mono">{new Date(log.logged_at).toLocaleTimeString()}</span>}
+                      </div>
+                      <div className="text-sm text-primary">{log.message}</div>
+                      {log.fields && Object.keys(log.fields).length > 0 && (
+                        <div className="flex flex-wrap gap-1" style={{ marginTop: 6 }}>
+                          {Object.entries(log.fields).map(([k, v]) => (
+                            <span key={k} className="text-xs font-mono" style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 3, color: 'var(--text-secondary)' }}>
+                              <span style={{ color: 'var(--accent-primary)' }}>{k}</span>: {String(v)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>

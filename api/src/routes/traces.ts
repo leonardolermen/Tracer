@@ -8,7 +8,7 @@ router.use(requireAuth)
 router.get('/', async (req, res) => {
   const { service, status, from, to, min_duration_ms, limit, cursor } = req.query
 
-  const { traces, nextCursor } = await listTraces({
+  const { traces, nextCursor, total } = await listTraces({
     workspaceId: req.auth.workspaceId,
     service: service as string,
     status: status as string,
@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
     cursor: cursor as string,
   })
 
-  res.json({ traces, total: traces.length, next_cursor: nextCursor })
+  res.json({ traces, total, next_cursor: nextCursor })
 })
 
 router.get('/:traceId', async (req, res) => {

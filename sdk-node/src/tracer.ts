@@ -31,8 +31,9 @@ export class Tracer {
   }
 
   startSpan(operationName: string, options: SpanOptions = {}): Span {
+    const traceId = (options as any).traceId ?? generateTraceId()
     return new Span({
-      traceId: options.parentId ? this.extractTraceId(options.parentId) : generateTraceId(),
+      traceId,
       parentId: options.parentId,
       serviceName: this.config.serviceName,
       operationName,
@@ -82,7 +83,4 @@ export class Tracer {
     }
   }
 
-  private extractTraceId(parentId: string): string {
-    return generateTraceId()
-  }
 }

@@ -14,6 +14,7 @@ export function traceflowMiddleware(tracer: Tracer) {
 
     const span = (tracer as any).startSpan(operationName, {
       kind: 'server',
+      traceId,
       parentId,
       tags: {
         'http.method': req.method,
@@ -21,7 +22,7 @@ export function traceflowMiddleware(tracer: Tracer) {
       },
     })
 
-    ;(span as any)['_traceId'] = traceId
+    res.setHeader('x-traceflow-trace-id', span.traceId)
     ;(req as any).span = span
 
     const originalJson = res.json.bind(res)

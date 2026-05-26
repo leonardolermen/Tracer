@@ -7,6 +7,7 @@ import { TraceDetailPage } from './pages/TraceDetailPage'
 import { ServicesPage } from './pages/ServicesPage'
 import { ServiceDetailPage } from './pages/ServiceDetailPage'
 import { AlertsPage } from './pages/AlertsPage'
+import { HomePage } from './pages/HomePage'
 
 function Layout() {
   const { token } = useAuth()
@@ -17,12 +18,13 @@ function Layout() {
       <Sidebar />
       <main className="flex-1 overflow-hidden flex flex-col">
         <Routes>
+          <Route path="/" element={<HomePage />} />
           <Route path="/traces" element={<TracesPage />} />
           <Route path="/traces/:traceId" element={<TraceDetailPage />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/services/:serviceName" element={<ServiceDetailPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
-          <Route path="*" element={<Navigate to="/traces" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>

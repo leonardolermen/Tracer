@@ -1,28 +1,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Color Palette */
-  --bg-dark: #0a0f1a;
-  --bg-panel: rgba(20, 26, 40, 0.65);
-  --bg-card: rgba(30, 38, 56, 0.7);
-  --bg-hover: rgba(45, 55, 75, 0.8);
+  /* Dark Theme Palette (Black & Orange) */
+  --bg-dark: #050505;
+  --bg-panel: rgba(18, 18, 18, 0.85);
+  --bg-card: rgba(30, 30, 30, 0.6);
+  --bg-hover: rgba(45, 45, 45, 0.8);
   
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #fcfcfa;
+  --text-secondary: #a9a9aa;
+  --text-muted: #727072;
   
-  --accent-primary: #6366f1;
-  --accent-hover: #4f46e5;
-  --accent-glow: rgba(99, 102, 241, 0.4);
+  --accent-primary: #f97316; /* Orange */
+  --accent-hover: #ea580c;
+  --accent-glow: rgba(249, 115, 22, 0.4);
   
-  --success: #10b981;
-  --success-bg: rgba(16, 185, 129, 0.15);
-  --error: #ef4444;
-  --error-bg: rgba(239, 68, 68, 0.15);
-  --warning: #f59e0b;
+  --success: #a9dc76;
+  --success-bg: rgba(169, 220, 118, 0.15);
+  --error: #ff6188;
+  --error-bg: rgba(255, 97, 136, 0.15);
+  --warning: #ffd866;
   
   --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-active: rgba(99, 102, 241, 0.3);
+  --border-active: rgba(249, 115, 22, 0.3);
   
   /* Radii */
   --radius-sm: 6px;
@@ -144,6 +144,11 @@ body {
   animation: fadeIn 0.5s ease-out forwards;
 }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
 /* Layout Helpers (since we removed Tailwind) */
 .flex { display: flex; }
 .flex-col { display: flex; flex-direction: column; }
@@ -177,6 +182,7 @@ body {
 .p-2 { padding: 0.5rem; }
 .p-3 { padding: 0.75rem; }
 .p-4 { padding: 1rem; }
+.p-5 { padding: 1.25rem; }
 .p-6 { padding: 1.5rem; }
 .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
 .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }

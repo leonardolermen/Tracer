@@ -63,7 +63,7 @@ export function ServicesPage() {
                     <TrendingUp style={{ width: '12px', height: '12px' }} />
                     Requests
                   </div>
-                  <div className="text-sm font-mono text-primary">{svc.trace_count_24h.toLocaleString()}</div>
+                  <div className="text-sm font-mono text-primary">{Number(svc.trace_count_24h).toLocaleString()}</div>
                 </div>
                 
                 <div className="flex-col gap-1.5" style={{ background: 'rgba(0,0,0,0.2)', padding: '12px 10px', borderRadius: '8px' }}>
@@ -71,7 +71,7 @@ export function ServicesPage() {
                     <Clock style={{ width: '12px', height: '12px' }} />
                     p95 Latency
                   </div>
-                  <div className="text-sm font-mono text-primary">{svc.p95_duration_ms}ms</div>
+                  <div className="text-sm font-mono text-primary">{Number(Number(svc.p95_duration_ms).toFixed(2))}ms</div>
                 </div>
 
                 <div className="flex-col gap-1.5" style={{ background: 'rgba(0,0,0,0.2)', padding: '12px 10px', borderRadius: '8px' }}>

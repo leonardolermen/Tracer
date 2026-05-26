@@ -84,6 +84,7 @@ export interface Span {
   status: string
   error: { type: string; message: string } | null
   tags: Record<string, string>
+  logs: { level: string; message: string; logged_at?: string; fields?: Record<string, string> }[]
   children: string[]
 }
 
