@@ -35,10 +35,12 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   login: (email: string, password: string) =>
-    req<{ token: string; workspace: { id: string; name: string } }>('/auth/login', {
+    req<{ token: string; workspace: WorkspaceInfo }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
+
+  me: () => req<{ workspace: WorkspaceInfo; email: string }>('/auth/me'),
 
   traces: (params: Record<string, string | number | undefined> = {}) => {
     const qs = new URLSearchParams()
@@ -58,6 +60,15 @@ export const api = {
     const qs = new URLSearchParams(params)
     return req<ServiceStats>(`/services/${encodeURIComponent(name)}/stats?${qs}`)
   },
+}
+
+
+export interface WorkspaceInfo {
+  id: string
+  name: string
+  api_key: string
+  plan: string
+  created_at: string
 }
 
 export interface Trace {

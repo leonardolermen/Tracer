@@ -1,105 +1,145 @@
 # TraceFlow
 
-> Observabilidade visual para sistemas concorrentes e distribuídos.
+> Observabilidade visual para APIs e sistemas distribuídos.
 
-TraceFlow transforma logs caóticos de sistemas assíncronos em um fluxograma navegável da requisição — do ponto de entrada até a falha, em tempo real.
+TraceFlow captura automaticamente cada requisição HTTP — corpo, headers, logs de negócio e spans entre serviços — e exibe tudo como uma linha do tempo navegável no dashboard.
 
 ```
-POST /checkout
-  └─ ServiçoA (12ms) ✓
-       └─ FilaRabbitMQ (enfileirado) ✓
-            └─ WorkerB (executou) ✓
-                 └─ ServiçoC ✗ timeout após 5s  ← aqui está o problema
+POST /payments
+  └─ core-service  (12ms) ✓  → fraud-service
+       └─ fraud-service (80ms) ✓
+            └─ fraud.analysis.decision: APPROVED
 ```
 
-## O problema
+---
 
-Debugar sistemas distribuídos e assíncronos é extremamente custoso. Ferramentas como Jaeger e Zipkin existem, mas exigem configuração complexa e apresentam spans técnicos isolados — não a história completa da requisição. Datadog e New Relic resolvem parcialmente, mas têm custo elevado e UX genérica.
+## Quickstart — 2 minutos
 
-TraceFlow foca em um único entregável: **mostrar o caminho completo de cada requisição como uma linha do tempo visual de causa e efeito**, com zero configuração além da instalação do SDK.
-
-## Componentes
-
-| Componente | Linguagem | Responsabilidade |
-|---|---|---|
-| `sdk-node` | TypeScript | Agente leve para serviços Node.js |
-| `sdk-elixir` | Elixir | Agente para serviços na BEAM VM *(roadmap)* |
-| `collector` | Go | Recebe e roteia eventos de trace |
-| `processor` | Go | Correlaciona spans, detecta anomalias |
-| `api` | TypeScript | REST + WebSocket para o dashboard |
-| `dashboard` | React | Visualização do fluxo em tempo real |
-
-## Quick start (desenvolvimento local)
+### 1. Suba a infraestrutura
 
 ```bash
-# Pré-requisitos: Docker, Node.js 20+, Go 1.22+
-
 git clone https://github.com/seu-user/traceflow
 cd traceflow
-
-# Sobe infraestrutura local (TimescaleDB + Redis)
 docker compose up -d
-
-# Instala dependências
-npm install --workspaces
-
-# Sobe coletor
-cd collector && go run ./cmd/collector
-
-# Sobe API + dashboard
-npm run dev
 ```
 
-## Instalação do SDK (Node.js)
+Dashboard disponível em **http://localhost:5173**  
+Login padrão: qualquer e-mail/senha (ou crie via script abaixo)
+
+### 2. Crie sua conta
+
+```bash
+node scripts/create-user.js --email dev@empresa.com --password senha123 --workspace "Minha Empresa"
+```
+
+### 3. Integre seu serviço
+
+Acesse **Settings** no dashboard e copie o snippet para sua linguagem.
+Seu `workspaceId` e a URL do coletor já estarão preenchidos.
+
+---
+
+## Integração — Spring Boot
+
+```xml
+<!-- pom.xml -->
+<dependency>
+  <groupId>com.traceflow</groupId>
+  <artifactId>traceflow-spring-boot-starter</artifactId>
+  <version>1.0.0</version>
+</dependency>
+```
+
+```yaml
+# application.yml
+traceflow:
+  collector-url: http://localhost:4317   # URL do coletor TraceFlow
+  workspace-id: ws_seu_workspace_id      # Encontre em Settings
+  capture-http-body: true
+  redact-sensitive-fields: true          # Oculta password, token, cvv, etc.
+```
+
+✅ **Zero alteração de código** — o starter instrumenta todas as rotas automaticamente.
+
+---
+
+## Integração — Node.js / Express
 
 ```bash
 npm install @traceflow/sdk
 ```
 
 ```typescript
-import { TraceFlow } from '@traceflow/sdk';
+import { TraceFlow, traceflowMiddleware } from '@traceflow/sdk'
 
-TraceFlow.init({
-  serviceName: 'checkout-service',
-  collectorUrl: 'http://localhost:4317',
-  environment: 'production',
-});
+TraceFlow.init({ serviceName: 'meu-servico' })
+// workspaceId e collectorUrl lidos das variáveis de ambiente automaticamente
 
-// Instrumentação manual de uma operação
-const span = TraceFlow.startSpan('process-payment');
-try {
-  await processPayment(order);
-  span.ok();
-} catch (err) {
-  span.error(err);
-} finally {
-  span.end();
-}
+app.use(traceflowMiddleware(TraceFlow.instance))
 ```
 
-O SDK propaga automaticamente o `trace-id` via headers HTTP e contexto de mensagens de fila.
+```bash
+# .env
+TRACEFLOW_WORKSPACE_ID=ws_seu_workspace_id
+TRACEFLOW_COLLECTOR_URL=http://localhost:4317
+```
 
-## Documentação
+---
 
-- [Visão do produto e roadmap](docs/PRODUCT.md)
-- [Arquitetura técnica](docs/ARCHITECTURE.md)
-- [Schema de eventos](docs/api/EVENT_SCHEMA.md)
-- [Contrato da API REST](docs/api/REST_API.md)
-- [Guia de contribuição](CONTRIBUTING.md)
-- [ADRs (decisões de arquitetura)](docs/adr/)
+## Variáveis de ambiente — SDK Node
 
-## Modelo de distribuição
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `TRACEFLOW_WORKSPACE_ID` | `ws_dev` | ID do seu workspace |
+| `TRACEFLOW_COLLECTOR_URL` | `http://localhost:4317` | URL do coletor (HTTP) |
+| `TRACEFLOW_COLLECTOR_HOST` | `localhost` | Host do coletor (UDP) |
 
-TraceFlow é open-source (MIT) para self-hosted. Um plano SaaS gerenciado está no roadmap para times que não querem operar a infraestrutura.
+---
+
+## Endpoints do coletor
+
+| Endpoint | Método | Descrição |
+|---|---|---|
+| `/v1/spans` | POST | Envia spans de trace |
+| `/v1/logs` | POST | Envia logs de negócio |
+| `/v1/traces` | POST | OTLP traces (Micrometer, OpenTelemetry) |
+| `/health` | GET | Health check |
+
+---
+
+## Arquitetura
+
+| Componente | Stack | Responsabilidade |
+|---|---|---|
+| `sdk-node` | TypeScript | Agente para APIs Node.js/Express |
+| `sdk-spring` | Java / Spring Boot | Starter para APIs Java |
+| `collector` | Go | Recebe spans e logs, publica no Redis |
+| `processor` | Go | Correlaciona spans, persiste no TimescaleDB |
+| `api` | Node.js + TypeScript | REST API para o dashboard |
+| `dashboard` | React + Vite | Interface de observabilidade |
+
+---
+
+## O que o TraceFlow captura automaticamente
+
+- ✅ **HTTP request/response** — método, URL, body (com redação de campos sensíveis), status
+- ✅ **Propagação de trace** — o `trace_id` flui automaticamente entre serviços via headers
+- ✅ **Spans hierárquicos** — timeline visual mostrando qual serviço chamou qual, e quanto tempo cada um levou
+- ✅ **Logs de negócio** — eventos customizados (`fraud.analysis.decision`, `payment.created`, etc.) correlacionados ao trace
+- ✅ **Dados sensíveis protegidos** — `password`, `token`, `cvv`, `cpf` e outros campos são mascarados por padrão
+
+---
 
 ## Status
 
-🚧 Em desenvolvimento ativo. Não use em produção ainda.
-
 | Milestone | Status |
 |---|---|
-| Schema de eventos v1 | ✅ Definido |
-| SDK Node.js (core) | 🔄 Em progresso |
-| Coletor Go (MVP) | 🔲 Planejado |
-| Correlação de spans | 🔲 Planejado |
-| Dashboard (fluxograma) | 🔲 Planejado |
+| Collector + Processor | ✅ Produção |
+| SDK Node.js | ✅ Produção |
+| SDK Spring Boot | ✅ Produção |
+| Dashboard — Timeline | ✅ Produção |
+| Dashboard — Logs correlacionados | ✅ Produção |
+| Dashboard — Settings / Getting Started | ✅ Produção |
+| SDK Python | 🔲 Roadmap |
+| SDK Go | 🔲 Roadmap |
+| Alertas em tempo real | 🔄 Em progresso |

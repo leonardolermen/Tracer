@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import { Activity, Server, Bell, LogOut, Zap, LayoutDashboard } from 'lucide-react'
+import { Activity, Server, Bell, LogOut, Zap, LayoutDashboard, Settings } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 const links: { to: string; icon: React.ElementType; label: string; exact: boolean }[] = [
@@ -80,6 +80,37 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      {/* Settings link at the bottom */}
+      <div className="px-3 pb-1">
+        <NavLink
+          to="/settings"
+          style={({ isActive }) => ({
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '10px 12px', borderRadius: 'var(--radius-md)',
+            fontSize: '0.875rem', fontWeight: 500, textDecoration: 'none',
+            transition: 'all 0.2s ease',
+            background: isActive ? 'rgba(249, 115, 22, 0.15)' : 'transparent',
+            color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
+            borderLeft: isActive ? '3px solid var(--accent-primary)' : '3px solid transparent',
+          })}
+          onMouseEnter={e => {
+            if (e.currentTarget.style.background === 'transparent') {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+              e.currentTarget.style.color = 'var(--text-primary)'
+            }
+          }}
+          onMouseLeave={e => {
+            if (e.currentTarget.style.borderLeft === '3px solid transparent') {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = 'var(--text-secondary)'
+            }
+          }}
+        >
+          <Settings style={{ width: '18px', height: '18px' }} />
+          Settings
+        </NavLink>
+      </div>
 
       <div className="p-3">
         <button

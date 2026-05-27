@@ -2,6 +2,7 @@ import { Router } from 'express'
 import jwt from 'jsonwebtoken'
 import { pool } from '../db/pool'
 import { config } from '../config'
+import { requireAuth } from '../middleware/auth'
 
 const router = Router()
 
@@ -25,7 +26,7 @@ router.post('/login', async (req, res) => {
   }
 
   const { rows: ws } = await pool.query(
-    'SELECT id, name, api_key FROM workspaces WHERE id = $1',
+    'SELECT id, name, api_key, plan, created_at FROM workspaces WHERE id = $1',
     [user.workspace_id]
   )
   const workspace = ws[0]
@@ -38,6 +39,19 @@ router.post('/login', async (req, res) => {
   )
 
   res.json({ token, expires_at: expiresAt.toISOString(), workspace })
+})
+
+// Returns full workspace info for the authenticated user
+router.get('/me', requireAuth, async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT id, name, api_key, plan, created_at FROM workspaces WHERE id = $1',
+    [req.auth.workspaceId]
+  )
+  if (!rows[0]) {
+    res.status(404).json({ error: 'not_found', message: 'Workspace not found' })
+    return
+  }
+  res.json({ workspace: rows[0], email: req.auth.email })
 })
 
 export default router

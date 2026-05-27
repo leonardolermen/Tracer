@@ -11,24 +11,35 @@ export class Tracer {
   private readonly transport: AnyTransport
 
   constructor(config: TraceFlowConfig) {
+    const workspaceId = config.workspaceId
+      ?? (typeof process !== 'undefined' ? process.env.TRACEFLOW_WORKSPACE_ID : undefined)
+      ?? 'ws_dev'
+
+    const collectorUrl = config.collectorUrl
+      ?? (typeof process !== 'undefined' ? process.env.TRACEFLOW_COLLECTOR_URL : undefined)
+      ?? 'http://localhost:4317'
+
+    const collectorHost = config.collectorHost
+      ?? (typeof process !== 'undefined' ? process.env.TRACEFLOW_COLLECTOR_HOST : undefined)
+      ?? 'localhost'
+
     this.config = {
       serviceName: config.serviceName,
-      workspaceId: config.workspaceId,
+      workspaceId,
       transport: config.transport ?? 'http',
       disabled: config.disabled ?? false,
     }
 
     if (config.transport === 'udp') {
       this.transport = new UdpTransport(
-        config.collectorHost ?? 'localhost',
+        collectorHost,
         config.collectorUdpPort ?? 4318
       )
     } else {
-      this.transport = new HttpTransport(
-        config.collectorUrl ?? 'http://localhost:4317'
-      )
+      this.transport = new HttpTransport(collectorUrl)
     }
   }
+
 
   startSpan(operationName: string, options: SpanOptions = {}): Span {
     const traceId = (options as any).traceId ?? generateTraceId()

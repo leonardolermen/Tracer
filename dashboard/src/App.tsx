@@ -8,6 +8,7 @@ import { ServicesPage } from './pages/ServicesPage'
 import { ServiceDetailPage } from './pages/ServiceDetailPage'
 import { AlertsPage } from './pages/AlertsPage'
 import { HomePage } from './pages/HomePage'
+import { SettingsPage } from './pages/SettingsPage'
 
 function Layout() {
   const { token } = useAuth()
@@ -24,6 +25,7 @@ function Layout() {
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/services/:serviceName" element={<ServiceDetailPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
