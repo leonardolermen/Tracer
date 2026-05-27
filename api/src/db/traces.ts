@@ -36,20 +36,33 @@ export async function listTraces(filters: TraceFilters) {
       trace_id AS id,
       MIN(started_at) AS started_at,
       MAX(ended_at) AS ended_at,
-      SUM(duration_ms) AS duration_ms,
+      ROUND(EXTRACT(EPOCH FROM (MAX(ended_at) - MIN(started_at))) * 1000) AS duration_ms,
       MAX(CASE WHEN status = 'error' THEN 'error'
                WHEN status = 'timeout' THEN 'timeout'
                ELSE status END) AS status,
-      MIN(CASE WHEN parent_id IS NULL THEN service_name END) AS root_service,
-      MIN(CASE WHEN parent_id IS NULL THEN operation END) AS root_operation,
-      COUNT(*) AS span_count,
+      (array_agg(service_name ORDER BY
+        CASE WHEN parent_id IS NULL AND kind != 'log' THEN 0 ELSE 1 END,
+        started_at ASC
+      ))[1] AS root_service,
+      (array_agg(operation ORDER BY
+        CASE WHEN parent_id IS NULL AND kind != 'log' THEN 0 ELSE 1 END,
+        started_at ASC
+      ))[1] AS root_operation,
+      COUNT(NULLIF(kind, 'log')) AS span_count,
       COUNT(CASE WHEN status = 'error' THEN 1 END) AS error_count,
       ARRAY_AGG(DISTINCT service_name) AS services
-    FROM spans
+    FROM (
+      SELECT trace_id, started_at, ended_at, duration_ms, status, parent_id, service_name, operation, kind, workspace_id
+      FROM spans
+      UNION ALL
+      SELECT trace_id, timestamp as started_at, timestamp as ended_at, 0 as duration_ms, 'ok' as status, null as parent_id, service_name, 'Logs only' as operation, 'log' as kind, workspace_id
+      FROM logs
+    ) AS spans
     WHERE ${where}
     GROUP BY trace_id
     ORDER BY started_at DESC
     LIMIT $${i}`,
+
     [...params, safeLimit + 1]
   )
 
@@ -58,7 +71,11 @@ export async function listTraces(filters: TraceFilters) {
   const nextCursor = hasMore ? traces[traces.length - 1].started_at : null
 
   const { rows: countRows } = await pool.query(
-    `SELECT COUNT(DISTINCT trace_id) AS total FROM spans WHERE ${where}`,
+    `SELECT COUNT(DISTINCT trace_id) AS total FROM (
+      SELECT trace_id, workspace_id, service_name, status, started_at FROM spans
+      UNION ALL
+      SELECT trace_id, workspace_id, service_name, 'ok' as status, timestamp as started_at FROM logs
+    ) as spans WHERE ${where}`,
     params
   )
   const total = parseInt(countRows[0].total, 10)
@@ -77,7 +94,30 @@ export async function getTrace(traceId: string, workspaceId: string) {
     [traceId, workspaceId]
   )
 
-  if (spans.length === 0) return null
+  if (spans.length === 0) {
+    const { rows: logs } = await pool.query(
+      `SELECT MIN(timestamp) as started_at, MAX(timestamp) as ended_at, COUNT(*) as log_count,
+              ARRAY_AGG(DISTINCT service_name) as services
+       FROM logs
+       WHERE trace_id = $1 AND workspace_id = $2`,
+      [traceId, workspaceId]
+    )
+    if (logs.length === 0 || logs[0].log_count === '0') return null
+
+    return {
+      id: traceId,
+      started_at: logs[0].started_at,
+      ended_at: logs[0].ended_at,
+      duration_ms: 0,
+      status: 'ok',
+      root_service: logs[0].services?.[0] || 'unknown',
+      root_operation: 'Logs only',
+      span_count: 0,
+      error_count: 0,
+      spans: [],
+      dag: { nodes: [], edges: [] },
+    }
+  }
 
   const spanMap = new Map(spans.map((s: any) => [s.id, s]))
   const children: Record<string, string[]> = {}
@@ -116,11 +156,15 @@ export async function getTrace(traceId: string, workspaceId: string) {
     }
   }
 
+  const traceStartedAt = spans.reduce((min: any, s: any) => s.started_at < min ? s.started_at : min, spans[0].started_at)
+  const traceEndedAt   = spans.reduce((max: any, s: any) => s.ended_at   > max ? s.ended_at   : max, spans[0].ended_at)
+  const traceDurationMs = Math.round((new Date(traceEndedAt).getTime() - new Date(traceStartedAt).getTime()))
+
   return {
     id: traceId,
-    started_at: root?.started_at,
-    ended_at: spans.reduce((max: any, s: any) => s.ended_at > max ? s.ended_at : max, spans[0].ended_at),
-    duration_ms: root?.duration_ms,
+    started_at: traceStartedAt,
+    ended_at: traceEndedAt,
+    duration_ms: traceDurationMs,
     status: root?.status,
     root_service: root?.service_name,
     root_operation: root?.operation_name,
@@ -141,7 +185,7 @@ export async function getTraceTimeline(traceId: string, workspaceId: string) {
     [traceId, workspaceId]
   )
 
-  if (rows.length === 0) return null
+  if (rows.length === 0) return { trace_id: traceId, total_duration_ms: 0, timeline: [] }
 
   const traceStart = rows[0].started_at.getTime()
   const totalDuration = rows.reduce((max: number, s: any) =>
@@ -167,4 +211,23 @@ export async function getTraceTimeline(traceId: string, workspaceId: string) {
       depth: depthMap[s.span_id] ?? 0,
     })),
   }
+}
+
+export async function getTraceLogs(traceId: string, workspaceId: string) {
+  const { rows } = await pool.query(
+    `SELECT id, service_name, level, message, attributes, timestamp
+     FROM logs
+     WHERE trace_id = $1 AND workspace_id = $2
+     ORDER BY timestamp ASC`,
+    [traceId, workspaceId]
+  )
+
+  return rows.map((log: any) => ({
+    id: log.id,
+    service_name: log.service_name,
+    level: log.level,
+    message: log.message,
+    attributes: log.attributes ?? {},
+    timestamp: log.timestamp,
+  }))
 }

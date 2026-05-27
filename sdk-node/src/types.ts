@@ -8,6 +8,13 @@ export interface SpanError {
   code?: string
 }
 
+export interface SpanLog {
+  level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
+  message: string
+  attributes?: Record<string, string>
+  timestamp: string // ISO
+}
+
 export interface SpanEvent {
   id: string
   trace_id: string
@@ -21,6 +28,7 @@ export interface SpanEvent {
   status: SpanStatus
   error?: SpanError
   tags: Record<string, string>
+  logs?: SpanLog[]
   workspace_id: string
 }
 

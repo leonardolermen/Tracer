@@ -36,8 +36,8 @@ export function statusBgStyle(status: string): React.CSSProperties {
 
 export function serviceColor(index: number): string {
   const colors = [
-    '#6366f1', '#06b6d4', '#10b981', '#f59e0b',
-    '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6',
+    '#f97316', '#ea580c', '#fb923c', '#f59e0b',
+    '#ef4444', '#78716c', '#a8a29e', '#57534e',
   ]
   return colors[index % colors.length]
 }

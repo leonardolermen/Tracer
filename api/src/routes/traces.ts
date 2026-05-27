@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
-import { listTraces, getTrace, getTraceTimeline } from '../db/traces'
+import { listTraces, getTrace, getTraceTimeline, getTraceLogs } from '../db/traces'
 
 const router = Router()
 router.use(requireAuth)
@@ -23,8 +23,10 @@ router.get('/', async (req, res) => {
 })
 
 router.get('/:traceId', async (req, res) => {
+  console.log(`[DEBUG] fetching trace ${req.params.traceId} for workspace ${req.auth.workspaceId}`)
   const trace = await getTrace(req.params.traceId, req.auth.workspaceId)
   if (!trace) {
+    console.log(`[DEBUG] getTrace returned null!`)
     res.status(404).json({ error: 'not_found', message: `Trace '${req.params.traceId}' not found` })
     return
   }
@@ -34,10 +36,17 @@ router.get('/:traceId', async (req, res) => {
 router.get('/:traceId/timeline', async (req, res) => {
   const timeline = await getTraceTimeline(req.params.traceId, req.auth.workspaceId)
   if (!timeline) {
+    console.log(`[DEBUG] getTraceTimeline returned null!`)
     res.status(404).json({ error: 'not_found', message: `Trace '${req.params.traceId}' not found` })
     return
   }
   res.json(timeline)
 })
+
+router.get('/:traceId/logs', async (req, res) => {
+  const logs = await getTraceLogs(req.params.traceId, req.auth.workspaceId)
+  res.json({ logs })
+})
+
 
 export default router

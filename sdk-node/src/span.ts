@@ -1,4 +1,4 @@
-import { SpanEvent, SpanError, SpanKind, SpanStatus } from './types'
+import { SpanEvent, SpanError, SpanKind, SpanStatus, SpanLog } from './types'
 import { generateSpanId } from './id'
 
 export class Span {
@@ -17,6 +17,8 @@ export class Span {
   private _tags: Record<string, string> = {}
 
   private _onEnd?: (span: Span) => void
+
+  private _logs: SpanLog[] = []
 
   constructor(opts: {
     traceId: string
@@ -60,6 +62,18 @@ export class Span {
     return this
   }
 
+  log(message: string, attributes?: Record<string, unknown>, level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' = 'INFO'): this {
+    const flat: Record<string, string> = {}
+    if (attributes) {
+      for (const [k, v] of Object.entries(attributes)) {
+        if (v === null || v === undefined) continue
+        flat[k] = typeof v === 'object' ? JSON.stringify(v) : String(v)
+      }
+    }
+    this._logs.push({ level, message, attributes: flat, timestamp: new Date().toISOString() })
+    return this
+  }
+
   end(status?: SpanStatus): void {
     this.endedAt = new Date()
     if (status) this._status = status
@@ -85,6 +99,7 @@ export class Span {
       status: this._status,
       error: this._error,
       tags: this._tags,
+      logs: this._logs,
       workspace_id: this.workspaceId,
     }
   }

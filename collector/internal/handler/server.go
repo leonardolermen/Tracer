@@ -26,6 +26,11 @@ func NewServer(cfg *config.Config, q *queue.Queue) *Server {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /spans", s.handleSpan)
+	mux.HandleFunc("POST /v1/traces", func(w http.ResponseWriter, r *http.Request) {
+		slog.Info("Received request on /v1/traces")
+		s.handleOTLPTraces(w, r)
+	})
+	mux.HandleFunc("POST /v1/logs", s.handleOTLPLogs)
 	mux.HandleFunc("GET /health", s.handleHealth)
 
 	s.http = &http.Server{
@@ -89,6 +94,25 @@ func (s *Server) handleSpan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Extract embedded logs and route them
+	for _, el := range span.Logs {
+		logEvt := &validator.LogEvent{
+			ID:          span.ID + "_" + el.Timestamp,
+			TraceID:     span.TraceID,
+			ServiceName: span.ServiceName,
+			Level:       el.Level,
+			Message:     el.Message,
+			Attributes:  el.Attributes,
+			WorkspaceID: span.WorkspaceID,
+		}
+		parsedTime, err := time.Parse(time.RFC3339Nano, el.Timestamp)
+		if err != nil {
+			parsedTime = time.Now()
+		}
+		logEvt.Timestamp = parsedTime
+		s.queue.PushLog(logEvt)
+	}
+
 	slog.Debug("span accepted", "span_id", span.ID, "trace_id", span.TraceID, "service", span.ServiceName)
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -116,6 +140,25 @@ func (s *Server) processRawSpan(data []byte, remote string) {
 		return
 	}
 
+	// Extract embedded logs and route them
+	for _, el := range span.Logs {
+		logEvt := &validator.LogEvent{
+			ID:          span.ID + "_" + el.Timestamp,
+			TraceID:     span.TraceID,
+			ServiceName: span.ServiceName,
+			Level:       el.Level,
+			Message:     el.Message,
+			Attributes:  el.Attributes,
+			WorkspaceID: span.WorkspaceID,
+		}
+		parsedTime, err := time.Parse(time.RFC3339Nano, el.Timestamp)
+		if err != nil {
+			parsedTime = time.Now()
+		}
+		logEvt.Timestamp = parsedTime
+		s.queue.PushLog(logEvt)
+	}
+
 	slog.Debug("udp span accepted", "span_id", span.ID, "trace_id", span.TraceID)
 }
 
@@ -129,6 +172,7 @@ func (s *Server) Shutdown() {
 }
 
 func writeError(w http.ResponseWriter, status int, code, message string) {
+	slog.Error("API Error", "status", status, "code", code, "message", message)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]string{

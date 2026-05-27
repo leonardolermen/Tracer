@@ -23,3 +23,14 @@ type SpanError struct {
 	Message string `json:"message"`
 	Code    string `json:"code,omitempty"`
 }
+
+type LogEvent struct {
+	ID          string            `json:"id"`
+	TraceID     string            `json:"trace_id"`
+	ServiceName string            `json:"service_name"`
+	Level       string            `json:"level"`
+	Message     string            `json:"message"`
+	Attributes  map[string]string `json:"attributes,omitempty"`
+	Timestamp   time.Time         `json:"timestamp"`
+	WorkspaceID string            `json:"workspace_id"`
+}

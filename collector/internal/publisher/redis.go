@@ -9,7 +9,10 @@ import (
 	"github.com/leonardolermen/tracer/collector/internal/queue"
 )
 
-const redisChannel = "spans"
+const (
+	redisSpanChannel = "spans"
+	redisLogChannel  = "logs"
+)
 
 type Publisher struct {
 	client *redis.Client
@@ -36,14 +39,23 @@ func (p *Publisher) Run(ctx context.Context) {
 		case <-ctx.Done():
 			p.client.Close()
 			return
-		case span := <-p.queue.Chan():
+		case span := <-p.queue.SpanChan():
 			payload, err := json.Marshal(span)
 			if err != nil {
 				slog.Error("failed to marshal span", "error", err)
 				continue
 			}
-			if err := p.client.Publish(ctx, redisChannel, payload).Err(); err != nil {
+			if err := p.client.Publish(ctx, redisSpanChannel, payload).Err(); err != nil {
 				slog.Error("failed to publish span to redis", "error", err)
+			}
+		case log := <-p.queue.LogChan():
+			payload, err := json.Marshal(log)
+			if err != nil {
+				slog.Error("failed to marshal log", "error", err)
+				continue
+			}
+			if err := p.client.Publish(ctx, redisLogChannel, payload).Err(); err != nil {
+				slog.Error("failed to publish log to redis", "error", err)
 			}
 		}
 	}

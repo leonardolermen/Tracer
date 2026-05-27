@@ -58,7 +58,7 @@ export function Sidebar() {
               fontWeight: 500,
               textDecoration: 'none',
               transition: 'all 0.2s ease',
-              background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+              background: isActive ? 'rgba(249, 115, 22, 0.15)' : 'transparent',
               color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
               borderLeft: isActive ? '3px solid var(--accent-primary)' : '3px solid transparent'
             })}

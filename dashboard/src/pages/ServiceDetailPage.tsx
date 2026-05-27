@@ -19,7 +19,7 @@ export function ServiceDetailPage() {
     if (!serviceName) return
     setLoading(true)
     const to = new Date()
-    const from = new Date(to.getTime() - 60 * 60 * 1000)
+    const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000) // 30 dias
     api.serviceStats(serviceName, {
       from: from.toISOString(),
       to: to.toISOString(),

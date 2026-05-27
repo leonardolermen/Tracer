@@ -78,3 +78,21 @@ func nullString(s string) *string {
 	}
 	return &s
 }
+
+func (s *Store) PersistLog(ctx context.Context, log *model.LogEvent) error {
+	attrs, err := json.Marshal(log.Attributes)
+	if err != nil {
+		slog.Warn("failed to marshal log attributes", "log_id", log.ID, "error", err)
+		attrs = []byte("{}")
+	}
+
+	_, err = s.pool.Exec(ctx, `
+		INSERT INTO logs (
+			id, trace_id, service_name, level, message, attributes, timestamp, workspace_id
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8
+		) ON CONFLICT (id, timestamp) DO NOTHING`,
+		log.ID, log.TraceID, log.ServiceName, log.Level, log.Message, attrs, log.Timestamp, log.WorkspaceID,
+	)
+	return err
+}

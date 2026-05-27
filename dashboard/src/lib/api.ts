@@ -52,6 +52,7 @@ export const api = {
 
   trace: (id: string) => req<TraceDetail>(`/traces/${id}`),
   timeline: (id: string) => req<Timeline>(`/traces/${id}/timeline`),
+  traceLogs: (id: string) => req<{ logs: TraceLog[] }>(`/traces/${id}/logs`),
   services: () => req<{ services: Service[] }>('/services'),
   serviceStats: (name: string, params: Record<string, string>) => {
     const qs = new URLSearchParams(params)
@@ -121,6 +122,15 @@ export interface Timeline {
   trace_id: string
   total_duration_ms: number
   timeline: TimelineSpan[]
+}
+
+export interface TraceLog {
+  id: string
+  service_name: string
+  level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
+  message: string
+  attributes: Record<string, string>
+  timestamp: string
 }
 
 export interface Service {

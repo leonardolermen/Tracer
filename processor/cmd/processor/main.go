@@ -34,7 +34,7 @@ func main() {
 	corr := correlator.New()
 	go corr.RunCleanup()
 
-	sub, err := subscriber.New(ctx, cfg.RedisURL, corr)
+	sub, err := subscriber.New(ctx, cfg.RedisURL, corr, store)
 	if err != nil {
 		slog.Error("failed to connect to redis", "error", err)
 		os.Exit(1)

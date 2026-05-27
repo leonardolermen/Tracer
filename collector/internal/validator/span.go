@@ -18,6 +18,7 @@ type SpanEvent struct {
 	Status        string            `json:"status"`
 	Error         *SpanError        `json:"error,omitempty"`
 	Tags          map[string]string `json:"tags,omitempty"`
+	Logs          []EmbeddedLog     `json:"logs,omitempty"`
 	WorkspaceID   string            `json:"workspace_id"`
 }
 
@@ -68,4 +69,48 @@ func Validate(s *SpanEvent) error {
 		return fmt.Errorf("workspace_id is required")
 	}
 	return nil
+}
+
+type LogEvent struct {
+	ID          string            `json:"id"`
+	TraceID     string            `json:"trace_id"`
+	ServiceName string            `json:"service_name"`
+	Level       string            `json:"level"`
+	Message     string            `json:"message"`
+	Attributes  map[string]string `json:"attributes,omitempty"`
+	Timestamp   time.Time         `json:"timestamp"`
+	WorkspaceID string            `json:"workspace_id"`
+}
+
+var validLogLevels = map[string]bool{
+	"DEBUG": true,
+	"INFO":  true,
+	"WARN":  true,
+	"ERROR": true,
+}
+
+func ValidateLog(l *LogEvent) error {
+	if l.TraceID == "" {
+		return fmt.Errorf("trace_id is required")
+	}
+	if l.ServiceName == "" {
+		return fmt.Errorf("service_name is required")
+	}
+	if !validLogLevels[l.Level] {
+		return fmt.Errorf("level must be one of: DEBUG, INFO, WARN, ERROR")
+	}
+	if l.Message == "" {
+		return fmt.Errorf("message is required")
+	}
+	if l.WorkspaceID == "" {
+		return fmt.Errorf("workspace_id is required")
+	}
+	return nil
+}
+
+type EmbeddedLog struct {
+	Level      string            `json:"level"`
+	Message    string            `json:"message"`
+	Attributes map[string]string `json:"attributes,omitempty"`
+	Timestamp  string            `json:"timestamp"`
 }
