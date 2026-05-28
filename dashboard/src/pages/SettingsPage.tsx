@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import {
   Copy, Check, Eye, EyeOff, Settings, Zap, Terminal,
   Coffee, Globe, Wifi, WifiOff, RefreshCw, Box, Code,
