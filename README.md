@@ -37,26 +37,40 @@ node scripts/create-user.js --email dev@empresa.com --password senha123 --worksp
 Acesse **Settings** no dashboard e copie o snippet para sua linguagem.
 Seu `workspaceId` e a URL do coletor já estarão preenchidos.
 
+## Integração
+
+O TraceFlow suporta múltiplas linguagens e abordagens. Todos os SDKs listados abaixo possuem:
+- Captura automática de Request/Response Body
+- Redação automática de campos sensíveis (`password`, `token`, etc)
+- Propagação de Trace entre serviços
+
+### SDKs Oficiais
+
+| Linguagem / Plataforma | Pacote | Setup |
+|---|---|---|
+| **Java (Spring Boot)** | `traceflow-spring-boot-starter` | Dependência Maven + `application.yml` |
+| **Node.js (Express)** | `@traceflow/sdk` | Middleware `app.use(traceflowMiddleware)` |
+| **.NET / C#** | `TraceFlow.Sdk` | `app.UseTraceFlow()` no `Program.cs` |
+| **Go** | `github.com/traceflow/sdk-go` | Envolver handler: `traceflow.Middleware(h)` |
+| **Ruby (Rack)** | `traceflow-sdk` | Middleware: `config.middleware.use TraceFlow::Middleware` |
+
+Acesse a aba **Settings** no dashboard para ver os snippets completos de integração.
+
 ---
 
-## Integração — Spring Boot
+### Sidecar Proxy (Zero Código)
 
-```xml
-<!-- pom.xml -->
-<dependency>
-  <groupId>com.traceflow</groupId>
-  <artifactId>traceflow-spring-boot-starter</artifactId>
-  <version>1.0.0</version>
-</dependency>
-```
+Se você tem um serviço legado ou em linguagem sem SDK oficial, pode usar o Sidecar. Ele senta na frente do seu serviço no `docker-compose` e proxeia o tráfego interceptando os bodies.
 
 ```yaml
-# application.yml
-traceflow:
-  collector-url: http://localhost:4317   # URL do coletor TraceFlow
-  workspace-id: ws_seu_workspace_id      # Encontre em Settings
-  capture-http-body: true
-  redact-sensitive-fields: true          # Oculta password, token, cvv, etc.
+# Apenas redirecione o tráfego para a imagem traceflow/sidecar:latest
+my-service-sidecar:
+  image: traceflow/sidecar:latest
+  environment:
+    TF_TARGET: "http://my-service:8080"
+    TF_SERVICE_NAME: "my-service"
+    TF_WORKSPACE_ID: "ws_seu_workspace_id"
+  ports: ["8080:8080"]
 ```
 
 ✅ **Zero alteração de código** — o starter instrumenta todas as rotas automaticamente.

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
 import {
   Copy, Check, Eye, EyeOff, Settings, Zap, Terminal,
-  Coffee, Globe, Wifi, WifiOff, RefreshCw, Box,
+  Coffee, Globe, Wifi, WifiOff, RefreshCw, Box, Code,
+  Layers, Package,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import type { WorkspaceInfo, Service } from '../lib/api'
@@ -87,7 +87,7 @@ export function SettingsPage() {
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
   const [apiKeyVisible, setApiKeyVisible] = useState(false)
-  const [tab, setTab]         = useState<'spring' | 'node' | 'sidecar' | 'curl'>('spring')
+  const [tab, setTab]         = useState<'spring' | 'node' | 'csharp' | 'go' | 'ruby' | 'sidecar' | 'curl'>('spring')
 
   useEffect(() => {
     Promise.all([api.me(), api.services()])
@@ -164,6 +164,33 @@ TRACEFLOW_COLLECTOR_URL=${collectorUrl}`
     "workspace_id": "${workspaceId}",
     "timestamp": "${new Date().toISOString()}"
   }'`
+
+  const goInit = `import "github.com/traceflow/sdk-go"
+
+// Envolve seu handler padrão net/http:
+http.Handle("/minha-rota", traceflow.Middleware(meuHandler))
+
+// Ou usando gin-gonic:
+// r.Use(traceflow.GinMiddleware())`
+
+  const csharpInit = `// No Program.cs (.NET 6+) ou Startup.cs
+using TraceFlow.Sdk;
+
+var builder = WebApplication.CreateBuilder(args);
+// Configura serviços (adiciona o HTTP client background e etc)
+builder.Services.AddTraceFlow(options => {
+    options.ServiceName = "meu-servico-dotnet";
+});
+
+var app = builder.Build();
+// Adiciona o Middleware na pipeline
+app.UseTraceFlow();`
+
+  const rubyInit = `# Em config/application.rb (Rails) ou no Sinatra
+require 'traceflow'
+
+# Adiciona o middleware do Rack
+config.middleware.use TraceFlow::Middleware, service_name: "meu-servico-ruby"`
 
   const sidecarCompose = `# docker-compose.yml — adicione ao seu projeto
 services:
@@ -321,7 +348,10 @@ services:
           <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'rgba(0,0,0,0.2)', padding: 4, borderRadius: 'var(--radius-sm)', width: 'fit-content' }}>
             {([
               { id: 'spring',  label: 'Spring Boot', icon: <Coffee style={{ width: 13, height: 13 }} /> },
+              { id: 'csharp',  label: '.NET / C#',   icon: <Layers style={{ width: 13, height: 13 }} /> },
               { id: 'node',    label: 'Node.js',     icon: <Terminal style={{ width: 13, height: 13 }} /> },
+              { id: 'go',      label: 'Go',          icon: <Code style={{ width: 13, height: 13 }} /> },
+              { id: 'ruby',    label: 'Ruby',        icon: <Package style={{ width: 13, height: 13 }} /> },
               { id: 'sidecar', label: 'Sidecar',     icon: <Box style={{ width: 13, height: 13 }} /> },
               { id: 'curl',    label: 'cURL / Test', icon: <Globe style={{ width: 13, height: 13 }} /> },
             ] as const).map(t => (
@@ -384,6 +414,57 @@ services:
                 Opção: via variáveis de ambiente (.env)
               </div>
               <CodeBlock code={envFile} lang=".env" />
+            </div>
+          )}
+
+          {/* C# tab */}
+          {tab === 'csharp' && (
+            <div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+                Instale o pacote NuGet e adicione o middleware na sua pipeline do ASP.NET Core. Ele faz buffer do Request/Response de forma segura.
+              </p>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.04em' }}>
+                1. Instale o pacote
+              </div>
+              <CodeBlock code="dotnet add package TraceFlow.Sdk" lang="bash" />
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.04em' }}>
+                2. Configuração no Program.cs
+              </div>
+              <CodeBlock code={csharpInit} lang="csharp" />
+            </div>
+          )}
+
+          {/* Go tab */}
+          {tab === 'go' && (
+            <div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+                Baixe o módulo e adicione o middleware para interceptar requisições HTTP nativas.
+              </p>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.04em' }}>
+                1. Instale o módulo
+              </div>
+              <CodeBlock code="go get github.com/traceflow/sdk-go" lang="bash" />
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.04em' }}>
+                2. Envolva seus handlers
+              </div>
+              <CodeBlock code={goInit} lang="go" />
+            </div>
+          )}
+
+          {/* Ruby tab */}
+          {tab === 'ruby' && (
+            <div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+                Instale a Gem e inclua o middleware Rack. Funciona nativamente com Ruby on Rails, Sinatra e qualquer aplicação baseada em Rack.
+              </p>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.04em' }}>
+                1. Adicione ao Gemfile
+              </div>
+              <CodeBlock code="gem 'traceflow-sdk'" lang="ruby" />
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.04em' }}>
+                2. Use o middleware
+              </div>
+              <CodeBlock code={rubyInit} lang="ruby" />
             </div>
           )}
 
