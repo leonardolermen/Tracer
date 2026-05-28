@@ -23,16 +23,23 @@ function tryPrettyJson(raw: string): { pretty: string; isJson: boolean } {
   }
 }
 
-function RequestBodyCard({ logs, rootService }: { logs: TraceLog[]; rootService: string }) {
+function RequestBodyCard({ logs }: { logs: TraceLog[] }) {
   const [bodyExpanded, setBodyExpanded] = useState(true)
-  const [resExpanded, setResExpanded]   = useState(false)
+  const [resExpanded, setResExpanded]   = useState(true)
 
-  // First http.request from the root service
-  const reqLog = logs.find(l => l.message === 'http.request' && l.service_name === rootService)
-  // First http.response from the root service
-  const resLog = logs.find(l => l.message === 'http.response' && l.service_name === rootService)
+  // Sort logs by timestamp to find the chronologically first http.request
+  const sorted = [...logs].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+
+  // Earliest http.request (entry point of the whole trace)
+  const reqLog = sorted.find(l => l.message === 'http.request')
+  // Latest http.response that matches the same service as the root request
+  const rootSvc = reqLog?.service_name
+  const resLog  = rootSvc
+    ? [...sorted].reverse().find(l => l.message === 'http.response' && l.service_name === rootSvc)
+    : undefined
 
   if (!reqLog) return null
+  const rootService = reqLog.service_name
 
   const method  = reqLog.attributes?.['http.method'] ?? ''
   const url     = reqLog.attributes?.['http.url'] ?? ''
@@ -148,7 +155,8 @@ function RequestBodyCard({ logs, rootService }: { logs: TraceLog[]; rootService:
 }
 
 function LogEntry({ log, idx }: { log: TraceLog; idx: number }) {
-  const [expanded, setExpanded] = useState(false)
+  const isHttpEntry = log.message === 'http.request' || log.message === 'http.response'
+  const [expanded, setExpanded] = useState(isHttpEntry) // auto-expand HTTP bodies
   const hasAttrs = log.attributes && Object.keys(log.attributes).length > 0
   const color = LOG_LEVEL_COLORS[log.level?.toUpperCase()] ?? 'var(--text-muted)'
   const time = new Date(log.timestamp).toLocaleTimeString('pt-BR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 })
@@ -309,10 +317,7 @@ export function TraceDetailPage() {
           ))}
         </div>
 
-        {/* ── Request body card ── */}
-        {logs.length > 0 && trace.root_service && (
-          <RequestBodyCard logs={logs} rootService={trace.root_service} />
-        )}
+        {/* ── Request body card — shown only in Logs tab, inside the tab content */}
 
         {/* Tabs */}
         <div className="flex gap-1 mb-4" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: 0 }}>
@@ -342,6 +347,9 @@ export function TraceDetailPage() {
         {/* ===== TIMELINE TAB ===== */}
         {tab === 'timeline' && (
           <div className="glass-panel p-6 mb-4">
+
+            {/* Request/Response summary at top of timeline */}
+            {logs.length > 0 && <RequestBodyCard logs={logs} />}
             <div className="flex gap-4 flex-wrap mb-6" style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: 'var(--radius-sm)' }}>
               {services.map((s, i) => (
                 <div key={s} className="flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -437,6 +445,9 @@ export function TraceDetailPage() {
         {/* ===== LOGS TAB ===== */}
         {tab === 'logs' && (
           <div className="glass-panel p-6 mb-4">
+
+            {/* Request/Response summary at top of logs */}
+            {logs.length > 0 && <RequestBodyCard logs={logs} />}
             {logs.length > 0 && (
               <div className="flex items-center gap-3 mb-4 flex-wrap">
                 <span className="text-xs text-muted font-semibold uppercase" style={{ letterSpacing: '0.05em' }}>Filter:</span>
