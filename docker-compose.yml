@@ -94,3 +94,28 @@ services:
 volumes:
   timescaledb_data:
   redis_data:
+
+# ── Sidecar example ────────────────────────────────────────────────────────────
+# Add the following to YOUR docker-compose.yml to instrument any service
+# without changing its code. Just redirect the port to the sidecar.
+#
+# Before:
+#   my-service:
+#     ports: ["8080:8080"]
+#
+# After:
+#   my-service:
+#     (remove the ports mapping — no direct external exposure)
+#
+#   my-service-sidecar:
+#     image: traceflow/sidecar:latest
+#     environment:
+#       TF_TARGET:        "http://my-service:8080"    # upstream
+#       TF_SERVICE_NAME:  "my-service"                # name in TraceFlow
+#       TF_WORKSPACE_ID:  "ws_your_workspace_id"      # from Settings page
+#       TF_COLLECTOR_URL: "http://collector:4317"      # or your hosted URL
+#     ports:
+#       - "8080:8080"   # clients talk to the sidecar
+#
+# That's it. All HTTP traffic is now traced automatically.
+

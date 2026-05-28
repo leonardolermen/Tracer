@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Copy, Check, Eye, EyeOff, Settings, Zap, Terminal,
-  Coffee, Globe, Wifi, WifiOff, RefreshCw,
+  Coffee, Globe, Wifi, WifiOff, RefreshCw, Box,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import type { WorkspaceInfo, Service } from '../lib/api'
@@ -87,7 +87,7 @@ export function SettingsPage() {
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
   const [apiKeyVisible, setApiKeyVisible] = useState(false)
-  const [tab, setTab]         = useState<'spring' | 'node' | 'curl'>('spring')
+  const [tab, setTab]         = useState<'spring' | 'node' | 'sidecar' | 'curl'>('spring')
 
   useEffect(() => {
     Promise.all([api.me(), api.services()])
@@ -164,6 +164,23 @@ TRACEFLOW_COLLECTOR_URL=${collectorUrl}`
     "workspace_id": "${workspaceId}",
     "timestamp": "${new Date().toISOString()}"
   }'`
+
+  const sidecarCompose = `# docker-compose.yml — adicione ao seu projeto
+services:
+
+  meu-servico:       # seu serviço existente
+    build: .         # sem alterações de código
+    # ports: []      # remova a exposição direta de porta
+
+  meu-servico-sidecar:
+    image: traceflow/sidecar:latest
+    environment:
+      TF_TARGET:        "http://meu-servico:8080"  # upstream
+      TF_SERVICE_NAME:  "meu-servico"              # nome no TraceFlow
+      TF_WORKSPACE_ID:  "${workspaceId}"
+      TF_COLLECTOR_URL: "${collectorUrl}"
+    ports:
+      - "8080:8080"   # clientes apontam para cá`
 
   if (loading) {
     return (
@@ -303,9 +320,10 @@ TRACEFLOW_COLLECTOR_URL=${collectorUrl}`
           {/* Language tabs */}
           <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'rgba(0,0,0,0.2)', padding: 4, borderRadius: 'var(--radius-sm)', width: 'fit-content' }}>
             {([
-              { id: 'spring', label: 'Spring Boot', icon: <Coffee style={{ width: 13, height: 13 }} /> },
-              { id: 'node',   label: 'Node.js',     icon: <Terminal style={{ width: 13, height: 13 }} /> },
-              { id: 'curl',   label: 'cURL / Test', icon: <Globe style={{ width: 13, height: 13 }} /> },
+              { id: 'spring',  label: 'Spring Boot', icon: <Coffee style={{ width: 13, height: 13 }} /> },
+              { id: 'node',    label: 'Node.js',     icon: <Terminal style={{ width: 13, height: 13 }} /> },
+              { id: 'sidecar', label: 'Sidecar',     icon: <Box style={{ width: 13, height: 13 }} /> },
+              { id: 'curl',    label: 'cURL / Test', icon: <Globe style={{ width: 13, height: 13 }} /> },
             ] as const).map(t => (
               <button
                 key={t.id}
@@ -366,6 +384,47 @@ TRACEFLOW_COLLECTOR_URL=${collectorUrl}`
                 Opção: via variáveis de ambiente (.env)
               </div>
               <CodeBlock code={envFile} lang=".env" />
+            </div>
+          )}
+
+          {/* Sidecar tab */}
+          {tab === 'sidecar' && (
+            <div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+                O Sidecar é um proxy reverso que senta na frente do seu serviço. Você <strong style={{ color: 'var(--text-primary)' }}>não toca no código</strong> — só redireciona a porta no docker-compose. Ideal para serviços legados ou linguagens sem SDK.
+              </p>
+
+              {/* Comparison table */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                {[
+                  { label: 'Sidecar (zero código)', items: ['✅ Request body', '✅ Response body', '✅ Status HTTP', '✅ Latência', '✅ Propagação de trace', '❌ Logs de negócio'], accent: false },
+                  { label: 'SDK (uma linha de código)', items: ['✅ Request body', '✅ Response body', '✅ Status HTTP', '✅ Latência', '✅ Propagação de trace', '✅ Logs de negócio'], accent: true },
+                ].map(col => (
+                  <div key={col.label} style={{
+                    background: col.accent ? 'rgba(249,115,22,0.06)' : 'rgba(0,0,0,0.2)',
+                    border: `1px solid ${col.accent ? 'rgba(249,115,22,0.25)' : 'var(--border-subtle)'}`,
+                    borderRadius: 'var(--radius-sm)', padding: '14px 16px',
+                  }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: col.accent ? 'var(--accent-primary)' : 'var(--text-secondary)', marginBottom: 10, letterSpacing: '0.04em' }}>{col.label}</div>
+                    {col.items.map(item => (
+                      <div key={item} style={{ fontSize: '0.78rem', color: item.startsWith('❌') ? 'var(--text-muted)' : 'var(--text-secondary)', marginBottom: 4 }}>{item}</div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.04em' }}>
+                Adicione ao seu docker-compose.yml
+              </div>
+              <CodeBlock code={sidecarCompose} lang="yaml" />
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px',
+                background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)',
+                borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', color: 'var(--text-secondary)',
+              }}>
+                <Box style={{ width: 14, height: 14, color: 'var(--accent-primary)', flexShrink: 0, marginTop: 1 }} />
+                O sidecar injeta o header <code style={{ fontFamily: 'monospace', color: 'var(--accent-primary)' }}>X-Traceflow-Trace-Id</code> nas respostas. Se dois serviços tiverem sidecar, os traces aparecem correlacionados automaticamente.
+              </div>
             </div>
           )}
 
