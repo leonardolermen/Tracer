@@ -2,134 +2,144 @@
 
 ## Visão
 
-**Para** engenheiros que operam sistemas distribuídos ou assíncronos,
-**que** perdem horas debugando falhas que envolvem múltiplos serviços,
-**TraceFlow** é uma ferramenta de observabilidade focada em fluxo de requisições,
-**que** transforma eventos de trace em um fluxograma visual navegável em tempo real,
-**ao contrário de** Jaeger, Zipkin e Datadog, que exibem spans técnicos isolados ou exigem configuração complexa e custosa.
+**Para** engenheiros que operam APIs e sistemas distribuídos,  
+**que** perdem tempo debugando falhas que passam por múltiplos serviços,  
+**TraceFlow** é uma plataforma de observabilidade focada em contexto de negócio,  
+**que** captura automaticamente o corpo de cada requisição, os eventos de negócio e o caminho completo entre serviços,  
+**ao contrário de** OpenTelemetry/Jaeger que capturam spans técnicos, e Datadog/New Relic que são caros e genéricos.
 
 ---
 
-## O problema
+## O Problema
 
-Sistemas modernos são distribuídos por natureza: uma única ação do usuário pode passar por um API gateway, um serviço de autenticação, um serviço de domínio, uma fila de mensagens, um worker assíncrono e um serviço de notificação antes de concluir.
+Uma transação de pagamento passa por 4 serviços em 566ms e falha no último. O dev precisa saber:
 
-Quando algo falha nesse caminho, o dev enfrenta:
+- Qual serviço falhou?
+- Com quais dados de entrada?
+- O fraud-service aprovou? Com qual score?
+- O erro foi timeout, validação ou exceção?
 
-- Logs espalhados em múltiplos terminais, arquivos ou sistemas
-- Ausência de correlação automática entre eventos de serviços diferentes
-- Ferramentas de APM complexas e caras para times pequenos ou médios
-- OpenTelemetry poderoso, mas com curva de configuração íngreme
-- Visualizadores como Jaeger que mostram spans técnicos, não a "história" da requisição
+**Sem TraceFlow:** abre 4 abas de log, tenta correlacionar timestamps manualmente, 45-90 minutos de investigação.
 
-O resultado é que um bug que levaria 5 minutos para encontrar com visibilidade adequada consome 45-90 minutos de investigação.
+**Com TraceFlow:** abre o trace no dashboard, vê a timeline completa com body da request, score de fraude e o span exato que falhou, em 2 minutos.
+
+---
+
+## O que o TraceFlow captura (que o OTEL não captura por padrão)
+
+| Dado | OTEL puro | TraceFlow SDK |
+|---|---|---|
+| Duração, status HTTP, URL | ✅ | ✅ |
+| Body da request/response | ❌ | ✅ |
+| Redação automática de campos sensíveis | ❌ configuração manual | ✅ automático |
+| Logs de negócio correlacionados ao trace | ❌ | ✅ |
+| Timeline visual proporcional | ❌ só coleta | ✅ |
+| Setup em < 5 minutos | ❌ | ✅ |
+
+---
+
+## Status Atual
+
+### ✅ Produção
+
+**Infraestrutura:**
+- Coletor Go (porta 4317) — recebe spans e logs via HTTP
+- Processador Go — persiste no TimescaleDB
+- API Node.js — REST com autenticação JWT
+- Dashboard React — timeline, logs, filtros, settings
+
+**SDKs:**
+- `sdk-node` — Express.js middleware, captura automática de body + logs de negócio
+- `traceflow-spring-boot-starter` — Spring Boot `OncePerRequestFilter`, zero código no controller
+
+**Features do Dashboard:**
+- Timeline visual proporcional dos spans por serviço
+- Request Body Card — mostra o body da requisição raiz com pretty-print JSON
+- Aba de Logs correlacionados ao trace (com filtro por nível e busca)
+- Filtros avançados: service, status, date range, hour range
+- Settings page com workspace ID, API key e snippets de integração por linguagem
+- Skeleton loading
+
+---
+
+## Roadmap
+
+### v1.1 — Mais SDKs
+Expandir cobertura de linguagens para reduzir fricção de adoção:
+
+- [ ] SDK Python (FastAPI + Django)
+- [ ] SDK Ruby (Rails + Sinatra via Rack)
+- [ ] SDK C# (ASP.NET Core)
+- [ ] SDK Go (Gin + Echo)
+- [ ] SDK Java Quarkus (extensão Quarkus)
+
+### v1.2 — Qualidade de Dados
+- [ ] OTLP completo (logs + métricas, hoje só traces parcial)
+- [ ] Ingestão via Fluent Bit / Logstash (aceitar qualquer log shipper)
+- [ ] Retention policies configuráveis por workspace
+
+### v1.3 — Inteligência
+- [ ] Detecção automática de anomalias (P95 fora do baseline)
+- [ ] Comparação de trace saudável vs trace com erro (diff visual)
+- [ ] Agrupamento de traces por endpoint + análise de outliers
+- [ ] Alertas em tempo real via webhook (Slack, Discord, PagerDuty)
+
+### v2.0 — SaaS
+- [ ] Multi-tenant gerenciado (sem infra própria para o cliente)
+- [ ] SSO / RBAC para times
+- [ ] Planos: Free (7 dias retenção) / Pro (90 dias) / Enterprise (custom)
+
+---
+
+## Diferenciais Competitivos
+
+| Critério | TraceFlow | Jaeger/Zipkin | Datadog APM | OTEL + Grafana |
+|---|---|---|---|---|
+| Setup time | **< 5 min** | 30-60 min | 60+ min | 2-4h |
+| Custo self-hosted | **Grátis** | Grátis | N/A | Grátis (infra paga) |
+| Body da requisição | **✅** | ❌ | ✅ pago | ❌ |
+| Redação de sensíveis automática | **✅** | ❌ | ❌ manual | ❌ manual |
+| Logs de negócio correlacionados | **✅** | ❌ | ✅ pago | ❌ |
+| UX para dev individual | **✅** | ❌ complexo | ❌ enterprise | ❌ infra |
+| Open source | **✅** | ✅ | ❌ | ✅ |
 
 ---
 
 ## Personas
 
-### Persona 1 — Diego, Engenheiro Backend (principal)
+### Diego — Engenheiro Backend em Fintech (principal)
+- Opera 6-12 microserviços (Node.js + Java)
+- Não tem DevOps dedicado
+- **Dor:** "quando uma transação falha, não sei em qual serviço sem abrir 4 abas de log"
+- **Não vai** pagar $500/mês por Datadog para time de 8 pessoas
+- **Já tentou** OTEL, achou configuração complexa demais
 
-- 4 anos de experiência, trabalha em startup de fintech com 8 devs
-- Opera 6-12 microserviços em Node.js + um worker em Python
-- Não tem time de DevOps dedicado; ele mesmo configura a infra
-- Dor: "quando uma transação falha no final do fluxo, eu não sei em qual serviço o problema aconteceu sem abrir 4 abas de log"
-- Não vai pagar $500/mês por Datadog para um time pequeno
-- Já tentou OpenTelemetry, achou a configuração complicada demais para o retorno
-
-### Persona 2 — Camila, Tech Lead (secundária)
-
-- Lidera um time de 5 devs em uma empresa de médio porte
-- Precisa de visibilidade para code reviews e postmortems
-- Quer mostrar para o time onde estão os gargalos de performance
-- Dor: "na hora do postmortem, ninguém consegue reconstituir exatamente o que aconteceu"
+### Camila — Tech Lead (secundária)
+- Lidera time de 5 devs
+- Precisa de visibilidade para postmortems e code reviews
+- **Dor:** "na hora do postmortem, ninguém consegue reconstituir o que aconteceu"
 
 ---
 
-## Proposta de valor
-
-| Para quem | Dor | Solução TraceFlow |
-|---|---|---|
-| Dev solo / time pequeno | OpenTelemetry é complexo demais | SDK de 3 linhas, zero configuração de collector externo |
-| Backend Node.js / Elixir | Ferramentas APM são caras | Open-source, self-hosted gratuito |
-| Qualquer dev debugando | Logs não contam a história | Fluxograma visual da requisição completa |
-| Tech Lead | Postmortems sem evidência visual | Timeline exportável por trace-id |
-
----
-
-## Funcionalidades
-
-### MVP (v0.1)
-
-Escopo mínimo para validar o produto com usuários reais.
-
-- SDK Node.js com instrumentação automática de `express` e `http`
-- Propagação automática de `trace-id` via headers (`x-trace-id`)
-- Captura manual de spans com `startSpan` / `span.end()`
-- Coletor Go recebendo eventos via HTTP (porta 4317)
-- Correlação de spans por `trace-id`
-- Dashboard mostrando o DAG (grafo acíclico) da requisição
-- Destaque visual de spans com erro ou timeout
-- Retenção de 24h em memória (sem banco de dados para simplificar o MVP)
-
-### v0.2 — Persistência e alertas
-
-- TimescaleDB para retenção histórica (7 dias free, 90 dias paid)
-- Busca por `trace-id`, `service`, `status`, `timerange`
-- Alertas via webhook (Slack, Discord) quando P95 latência ultrapassar threshold configurado
-- SDK para Elixir / BEAM
-
-### v0.3 — Inteligência
-
-- Detecção automática de padrões de falha recorrentes
-- Comparação de trace "saudável" vs trace com erro (diff visual)
-- Agrupamento de traces por endpoint + análise de outliers
-- Exportação de timeline para postmortem (PDF / Markdown)
-
-### Roadmap (além do MVP)
-
-- SDK para Python, Go, Java
-- Integração com OpenTelemetry como fonte alternativa de dados
-- SaaS gerenciado (sem infra própria)
-- SSO / RBAC para times maiores
-
----
-
-## Diferenciais competitivos
-
-| Critério | TraceFlow | Jaeger/Zipkin | Datadog APM | OpenTelemetry |
-|---|---|---|---|---|
-| Setup time | < 5 min | 30-60 min | 60+ min | 2-4h |
-| Custo (self-hosted) | Grátis | Grátis | N/A | Grátis |
-| Visualização de fluxo | ✅ Fluxograma | ⚠️ Gantt de spans | ✅ Sim | ❌ Só coleta |
-| Foco em sistemas async | ✅ Sim | ⚠️ Parcial | ⚠️ Parcial | ❌ Agnóstico |
-| UX para dev individual | ✅ Sim | ❌ Complexo | ❌ Enterprise | ❌ Infra |
-
----
-
-## Métricas de sucesso
+## Métricas de Sucesso
 
 ### Validação (0-3 meses)
-
-- 50 instalações do SDK npm
+- 50 instalações do SDK
 - 10 devs usando ativamente (> 5 traces/semana)
-- NPS > 40 nos primeiros usuários
-- Tempo médio de setup < 10 minutos
+- Tempo médio de setup < 10 minutos (medido em onboarding)
+- NPS > 40
 
 ### Crescimento (3-12 meses)
-
-- 500 repos com SDK instalado (rastreado via npm)
-- 3 casos de uso documentados em postmortem público
-- Comunidade Discord com > 200 membros
-- 1 empresa pagando pelo plano SaaS (prova de willingness to pay)
+- 500 repos com SDK instalado
+- 5 linguagens com SDK disponível
+- 1 empresa pagando pelo plano SaaS
 
 ---
 
-## Riscos e mitigações
+## Riscos
 
-| Risco | Probabilidade | Impacto | Mitigação |
-|---|---|---|---|
-| OpenTelemetry se torna simples o suficiente | Média | Alto | Focar em UX e visualização, que OTel não resolve |
-| Custo de infra no SaaS inviabiliza o modelo | Média | Médio | Começar com retenção curta e compressão agressiva |
-| Adoção lenta por falta de SDK para outras linguagens | Alta | Médio | Focar em Node primeiro, aceitar contribuições externas |
-| Concorrente grande lança feature similar | Baixa | Alto | Velocidade de ship e foco em dev experience > enterprise |
+| Risco | Probabilidade | Mitigação |
+|---|---|---|
+| OTEL se torna simples o suficiente | Média | Focar em body capture e logs de negócio — o que OTEL não faz |
+| Adoção lenta por falta de SDK para outras linguagens | Alta | Priorizar Python e C# que têm maior mercado após Node/Java |
+| Concorrente grande lança feature similar | Baixa | Velocidade de ship e DX superior ao enterprise |
