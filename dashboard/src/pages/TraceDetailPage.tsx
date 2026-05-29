@@ -23,23 +23,25 @@ function tryPrettyJson(raw: string): { pretty: string; isJson: boolean } {
   }
 }
 
-function RequestBodyCard({ logs }: { logs: TraceLog[] }) {
+function RequestBodyCard({ logs, rootService }: { logs: TraceLog[], rootService?: string }) {
   const [bodyExpanded, setBodyExpanded] = useState(true)
   const [resExpanded, setResExpanded]   = useState(true)
 
   // Sort logs by timestamp to find the chronologically first http.request
   const sorted = [...logs].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
-  // Earliest http.request (entry point of the whole trace)
-  const reqLog = sorted.find(l => l.message === 'http.request')
-  // Latest http.response that matches the same service as the root request
-  const rootSvc = reqLog?.service_name
-  const resLog  = rootSvc
-    ? [...sorted].reverse().find(l => l.message === 'http.response' && l.service_name === rootSvc)
+  // Prioritize http.request from the root service, fallback to chronological first
+  const reqLog = (rootService ? sorted.find(l => l.message === 'http.request' && l.service_name === rootService) : null)
+              || sorted.find(l => l.message === 'http.request')
+  
+  // Latest http.response that matches the same service as the request
+  const reqSvc = reqLog?.service_name
+  const resLog = reqSvc
+    ? [...sorted].reverse().find(l => l.message === 'http.response' && l.service_name === reqSvc)
     : undefined
 
   if (!reqLog) return null
-  const rootService = reqLog.service_name
+  const renderService = reqLog.service_name
 
   const method  = reqLog.attributes?.['http.method'] ?? ''
   const url     = reqLog.attributes?.['http.url'] ?? ''
@@ -349,7 +351,7 @@ export function TraceDetailPage() {
           <div className="glass-panel p-6 mb-4">
 
             {/* Request/Response summary at top of timeline */}
-            {logs.length > 0 && <RequestBodyCard logs={logs} />}
+            {logs.length > 0 && <RequestBodyCard logs={logs} rootService={trace.root_service} />}
             <div className="flex gap-4 flex-wrap mb-6" style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: 'var(--radius-sm)' }}>
               {services.map((s, i) => (
                 <div key={s} className="flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -447,7 +449,7 @@ export function TraceDetailPage() {
           <div className="glass-panel p-6 mb-4">
 
             {/* Request/Response summary at top of logs */}
-            {logs.length > 0 && <RequestBodyCard logs={logs} />}
+            {logs.length > 0 && <RequestBodyCard logs={logs} rootService={trace.root_service} />}
             {logs.length > 0 && (
               <div className="flex items-center gap-3 mb-4 flex-wrap">
                 <span className="text-xs text-muted font-semibold uppercase" style={{ letterSpacing: '0.05em' }}>Filter:</span>

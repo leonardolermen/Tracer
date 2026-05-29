@@ -13,7 +13,7 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://traceflow:traceflow@localhost:5432/traceflow"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://traceflow:traceflow@localhost:5433/traceflow"),
 		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 		LogLevel:    parseLogLevel(getEnv("LOG_LEVEL", "info")),
 	}

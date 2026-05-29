@@ -97,7 +97,7 @@ export async function getTrace(traceId: string, workspaceId: string) {
   if (spans.length === 0) {
     const { rows: logs } = await pool.query(
       `SELECT MIN(timestamp) as started_at, MAX(timestamp) as ended_at, COUNT(*) as log_count,
-              ARRAY_AGG(DISTINCT service_name) as services
+              (ARRAY_AGG(service_name ORDER BY timestamp ASC))[1] as root_service
        FROM logs
        WHERE trace_id = $1 AND workspace_id = $2`,
       [traceId, workspaceId]
@@ -110,7 +110,7 @@ export async function getTrace(traceId: string, workspaceId: string) {
       ended_at: logs[0].ended_at,
       duration_ms: 0,
       status: 'ok',
-      root_service: logs[0].services?.[0] || 'unknown',
+      root_service: logs[0].root_service || 'unknown',
       root_operation: 'Logs only',
       span_count: 0,
       error_count: 0,
