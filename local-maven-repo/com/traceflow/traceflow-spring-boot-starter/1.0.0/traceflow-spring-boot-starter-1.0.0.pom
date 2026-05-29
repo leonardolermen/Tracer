@@ -20,25 +20,6 @@
         <spring-cloud.version>2023.0.0</spring-cloud.version>
     </properties>
 
-    <scm>
-        <url>https://github.com/leonardolermen/Tracer</url>
-        <connection>scm:git:https://github.com/leonardolermen/Tracer.git</connection>
-    </scm>
-
-    <!--
-        GitHub Packages registry.
-        Authentication is handled by:
-          - CI: setup-java action injects GITHUB_TOKEN automatically
-          - Local: add a <server> entry in ~/.m2/settings.xml (see sdk-java/docs/SETUP.md)
-    -->
-    <distributionManagement>
-        <repository>
-            <id>github</id>
-            <name>GitHub Packages — TraceFlow Java SDK</name>
-            <url>https://maven.pkg.github.com/leonardolermen/Tracer</url>
-        </repository>
-    </distributionManagement>
-
     <!--
         Libraries should NOT inherit from spring-boot-starter-parent — that would
         force a specific Spring Boot version onto the client's dependency tree.
