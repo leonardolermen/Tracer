@@ -1,4 +1,4 @@
-name: Publish SDK to GitHub Packages
+name: Publish SDK to GitHub Pages Maven Repo
 
 on:
   push:
@@ -13,8 +13,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      packages: write
+      contents: write # Needed to push to gh-pages branch
 
     steps:
       - uses: actions/checkout@v4
@@ -25,12 +24,15 @@ jobs:
           java-version: '17'
           distribution: 'microsoft'
           cache: maven
-          server-id: github
-          server-username: GITHUB_ACTOR
-          server-password: GITHUB_TOKEN
 
-      - name: Publish to GitHub Packages
-        run: mvn --batch-mode deploy -DskipTests
+      - name: Build and deploy to local folder
+        run: mvn --batch-mode deploy -DskipTests -DaltDeploymentRepository=gh-pages::default::file://${GITHUB_WORKSPACE}/mvn-repo
         working-directory: sdk-java
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./mvn-repo
+          publish_branch: gh-pages
+          keep_files: true # Keep old versions published previously

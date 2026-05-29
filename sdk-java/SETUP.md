@@ -1,48 +1,26 @@
 # Consumindo o TraceFlow Java SDK
 
-## 1. Gere um Personal Access Token no GitHub
+O SDK do TraceFlow é distribuído publicamente usando o GitHub Pages. **Nenhuma autenticação é necessária** para consumi-lo no seu projeto.
 
-Settings → Developer settings → Personal access tokens → **Tokens (classic)**
+## 1. Adicione o repositório no seu projeto
 
-Permissão necessária: `read:packages`
-
-> Guarde o token — você vai precisar dele no próximo passo.
-
-## 2. Configure o `~/.m2/settings.xml`
-
-Adicione o servidor ao seu `settings.xml` local (crie o arquivo se não existir):
-
-```xml
-<settings>
-  <servers>
-    <server>
-      <id>github-traceflow</id>
-      <username>SEU_USUARIO_GITHUB</username>
-      <password>ghp_SEU_TOKEN_AQUI</password>
-    </server>
-  </servers>
-</settings>
-```
-
-> O `id` deve ser exatamente `github-traceflow` — é o mesmo definido no `pom.xml` do projeto cliente.
-
-## 3. Adicione a dependência no seu projeto
-
-**`pom.xml` raiz** — adicione o repositório:
+No seu **`pom.xml` raiz**, adicione o repositório do GitHub Pages:
 
 ```xml
 <repositories>
   <repository>
-    <id>github-traceflow</id>
-    <name>TraceFlow GitHub Packages</name>
-    <url>https://maven.pkg.github.com/leonardolermen/Tracer</url>
+    <id>traceflow-pages</id>
+    <name>TraceFlow GitHub Pages</name>
+    <url>https://leonardolermen.github.io/Tracer/</url>
     <releases><enabled>true</enabled></releases>
     <snapshots><enabled>false</enabled></snapshots>
   </repository>
 </repositories>
 ```
 
-**`pom.xml` do serviço** — adicione a dependência:
+## 2. Adicione a dependência
+
+No `pom.xml` do seu serviço, adicione a dependência do starter:
 
 ```xml
 <dependency>
@@ -52,7 +30,9 @@ Adicione o servidor ao seu `settings.xml` local (crie o arquivo se não existir)
 </dependency>
 ```
 
-## 4. Configure o `application.yml`
+## 3. Configure o `application.yml`
+
+O SDK já irá capturar e instrumentar tudo, mas precisa saber para qual servidor do TraceFlow ele deve enviar os dados:
 
 ```yaml
 traceflow:
@@ -63,16 +43,4 @@ traceflow:
   enabled: true
 ```
 
-Pronto. O SDK auto-configura o filtro HTTP, o interceptor Feign e a propagação Kafka automaticamente.
-
----
-
-## Publicando uma nova versão (TraceFlow team)
-
-```bash
-# No projeto traceflow/sdk-java — atualize a versão no pom.xml e rode:
-export GITHUB_TOKEN=ghp_seu_token_com_write_packages
-mvn deploy
-```
-
-Ou simplesmente faça push na branch `main` — o GitHub Actions publica automaticamente.
+Pronto! O SDK auto-configura o filtro HTTP, o interceptor Feign e a propagação de eventos no Kafka automaticamente.
