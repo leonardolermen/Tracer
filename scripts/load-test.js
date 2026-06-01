@@ -87,7 +87,7 @@ function makeTrace() {
 async function sendSpan(span) {
   const res = await fetch(`${HOST}/spans`, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': 'tf_live_devkey' },
     body:    JSON.stringify(span),
   })
   if (!res.ok) {

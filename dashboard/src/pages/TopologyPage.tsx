@@ -75,7 +75,7 @@ export function TopologyPage() {
           source: e.source,
           target: e.target,
           animated: true,
-          label: \`\${e.p95Latency}ms\`,
+          label: `${e.p95Latency}ms`,
           style: { stroke: isError ? 'var(--error)' : 'var(--success)' },
           labelStyle: { fill: 'var(--text-primary)', fontSize: 10 },
           labelBgStyle: { fill: 'rgba(0,0,0,0.8)' },
