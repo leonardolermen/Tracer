@@ -1,7 +1,10 @@
 export { Tracer } from './tracer'
 export { Span } from './span'
+export { TraceFlow } from './traceflow'
 export { injectHeaders, extractContext } from './propagation'
 export { traceflowMiddleware } from './integrations/express'
+export { fastifyTraceFlow } from './integrations/fastify'
+export { TraceFlowInterceptor } from './integrations/nestjs'
 export { patchFetch } from './integrations/fetch'
 export type {
   TraceFlowConfig,

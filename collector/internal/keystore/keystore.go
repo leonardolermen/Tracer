@@ -7,6 +7,8 @@ package keystore
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"log/slog"
 	"sync"
 	"time"
@@ -18,8 +20,11 @@ type Store struct {
 	pool         *pgxpool.Pool
 	refreshEvery time.Duration
 
-	mu   sync.RWMutex
-	keys map[string]string // api_key -> workspace_id
+	mu         sync.RWMutex
+	legacyKeys map[string]string // api_key -> workspace_id
+	hashedKeys map[string]string // sha256(api_key) -> workspace_id
+	
+	usedKeys chan string // channel for key_hashes to update last_used_at
 }
 
 // New connects to the database, performs an initial load of the api-keys and
@@ -33,7 +38,9 @@ func New(ctx context.Context, databaseURL string, refreshEvery time.Duration) (*
 	s := &Store{
 		pool:         pool,
 		refreshEvery: refreshEvery,
-		keys:         make(map[string]string),
+		legacyKeys:   make(map[string]string),
+		hashedKeys:   make(map[string]string),
+		usedKeys:     make(chan string, 10000),
 	}
 
 	if err := s.refresh(ctx); err != nil {
@@ -45,29 +52,50 @@ func New(ctx context.Context, databaseURL string, refreshEvery time.Duration) (*
 }
 
 func (s *Store) refresh(ctx context.Context) error {
+	// 1. Load legacy keys
 	rows, err := s.pool.Query(ctx, `SELECT api_key, id FROM workspaces`)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 
-	keys := make(map[string]string)
+	legacy := make(map[string]string)
 	for rows.Next() {
 		var apiKey, workspaceID string
 		if err := rows.Scan(&apiKey, &workspaceID); err != nil {
 			return err
 		}
-		keys[apiKey] = workspaceID
+		legacy[apiKey] = workspaceID
 	}
 	if err := rows.Err(); err != nil {
 		return err
 	}
 
+	// 2. Load hashed keys
+	rows2, err := s.pool.Query(ctx, `SELECT key_hash, workspace_id FROM api_keys WHERE revoked_at IS NULL`)
+	if err != nil {
+		return err
+	}
+	defer rows2.Close()
+
+	hashed := make(map[string]string)
+	for rows2.Next() {
+		var keyHash, workspaceID string
+		if err := rows2.Scan(&keyHash, &workspaceID); err != nil {
+			return err
+		}
+		hashed[keyHash] = workspaceID
+	}
+	if err := rows2.Err(); err != nil {
+		return err
+	}
+
 	s.mu.Lock()
-	s.keys = keys
+	s.legacyKeys = legacy
+	s.hashedKeys = hashed
 	s.mu.Unlock()
 
-	slog.Info("api-key cache refreshed", "count", len(keys))
+	slog.Info("api-key cache refreshed", "legacy", len(legacy), "hashed", len(hashed))
 	return nil
 }
 
@@ -75,8 +103,24 @@ func (s *Store) refresh(ctx context.Context) error {
 // the key is valid.
 func (s *Store) WorkspaceID(apiKey string) (string, bool) {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
-	workspaceID, ok := s.keys[apiKey]
+	workspaceID, ok := s.legacyKeys[apiKey]
+	if ok {
+		s.mu.RUnlock()
+		return workspaceID, true
+	}
+
+	hashBytes := sha256.Sum256([]byte(apiKey))
+	hashStr := hex.EncodeToString(hashBytes[:])
+	workspaceID, ok = s.hashedKeys[hashStr]
+	s.mu.RUnlock()
+
+	if ok {
+		select {
+		case s.usedKeys <- hashStr:
+		default:
+		}
+	}
+
 	return workspaceID, ok
 }
 
@@ -84,6 +128,8 @@ func (s *Store) WorkspaceID(apiKey string) (string, bool) {
 func (s *Store) Run(ctx context.Context) {
 	ticker := time.NewTicker(s.refreshEvery)
 	defer ticker.Stop()
+
+	go s.flushUsedKeys(ctx)
 
 	for {
 		select {
@@ -93,6 +139,40 @@ func (s *Store) Run(ctx context.Context) {
 		case <-ticker.C:
 			if err := s.refresh(ctx); err != nil {
 				slog.Error("failed to refresh api-key cache", "error", err)
+			}
+		}
+	}
+}
+
+func (s *Store) flushUsedKeys(ctx context.Context) {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	used := make(map[string]bool)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case hash := <-s.usedKeys:
+			used[hash] = true
+		case <-ticker.C:
+			if len(used) > 0 {
+				hashes := make([]string, 0, len(used))
+				for h := range used {
+					hashes = append(hashes, h)
+				}
+				used = make(map[string]bool)
+
+				// Background update
+				go func(hashesToUpdate []string) {
+					updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					_, err := s.pool.Exec(updateCtx, `UPDATE api_keys SET last_used_at = NOW() WHERE key_hash = ANY($1)`, hashesToUpdate)
+					if err != nil {
+						slog.Warn("failed to update last_used_at for api_keys", "error", err)
+					}
+				}(hashes)
 			}
 		}
 	}

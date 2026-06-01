@@ -35,6 +35,7 @@ func NewServer(cfg *config.Config, q *queue.Queue, keys *keystore.Store, limiter
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /spans", s.withAuth(s.handleSpan))
+	mux.HandleFunc("POST /ingest", s.withAuth(s.handleIngest))
 	mux.HandleFunc("POST /v1/traces", s.withAuth(s.handleOTLPTraces))
 	mux.HandleFunc("POST /v1/logs", s.withAuth(s.handleOTLPLogs))
 	mux.HandleFunc("GET /health", s.handleHealth)

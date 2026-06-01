@@ -2,10 +2,19 @@ import { useEffect, useState } from 'react'
 import {
   Copy, Check, Eye, EyeOff, Settings, Zap, Terminal,
   Coffee, Globe, Wifi, WifiOff, RefreshCw, Box, Code,
-  Layers, Package,
+  Layers, Package, Key, Plus, Trash2, Activity,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import type { WorkspaceInfo, Service } from '../lib/api'
+
+interface ApiKey {
+  id: string
+  name: string
+  key_prefix: string
+  last_used_at: string | null
+  created_at: string
+  revoked_at: string | null
+}
 
 // ── Copy button ────────────────────────────────────────────────────────────────
 function CopyButton({ text, small }: { text: string; small?: boolean }) {
@@ -88,14 +97,23 @@ export function SettingsPage() {
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
   const [apiKeyVisible, setApiKeyVisible] = useState(false)
-  const [tab, setTab]         = useState<'spring' | 'node' | 'csharp' | 'go' | 'ruby' | 'sidecar' | 'curl'>('spring')
+  const [tab, setTab]         = useState<'spring' | 'node' | 'csharp' | 'go' | 'ruby' | 'python' | 'sidecar' | 'curl' | 'otel'>('spring')
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
+  const [showKeyForm, setShowKeyForm] = useState(false)
+  const [newKeyName, setNewKeyName] = useState('')
+  const [createdKey, setCreatedKey] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([api.me(), api.services()])
-      .then(([me, svc]) => {
+    Promise.all([
+      api.me(), 
+      api.services(),
+      fetch('/api/v1/api-keys', { headers: { Authorization: `Bearer ${localStorage.getItem('tf_token')}` } }).then(r => r.json()).catch(() => ({ keys: [] }))
+    ])
+      .then(([me, svc, keysData]) => {
         setWs(me.workspace)
         setEmail(me.email)
         setServices(svc.services)
+        setApiKeys(keysData.keys ?? [])
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -103,9 +121,43 @@ export function SettingsPage() {
 
   function reload() {
     setLoading(true)
-    Promise.all([api.me(), api.services()])
-      .then(([me, svc]) => { setWs(me.workspace); setEmail(me.email); setServices(svc.services) })
+    Promise.all([
+      api.me(), 
+      api.services(),
+      fetch('/api/v1/api-keys', { headers: { Authorization: `Bearer ${localStorage.getItem('tf_token')}` } }).then(r => r.json()).catch(() => ({ keys: [] }))
+    ])
+      .then(([me, svc, keysData]) => { 
+        setWs(me.workspace)
+        setEmail(me.email)
+        setServices(svc.services)
+        setApiKeys(keysData.keys ?? [])
+      })
       .finally(() => setLoading(false))
+  }
+
+  async function handleCreateKey(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newKeyName) return
+    const res = await fetch('/api/v1/api-keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('tf_token')}` },
+      body: JSON.stringify({ name: newKeyName })
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    setApiKeys([data, ...apiKeys])
+    setCreatedKey(data.api_key)
+    setShowKeyForm(false)
+    setNewKeyName('')
+  }
+
+  async function handleRevokeKey(id: string) {
+    if (!confirm('Tem certeza? Serviços usando essa chave pararão de enviar dados.')) return
+    await fetch(`/api/v1/api-keys/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${localStorage.getItem('tf_token')}` },
+    })
+    setApiKeys(apiKeys.map(k => k.id === id ? { ...k, revoked_at: new Date().toISOString() } : k))
   }
 
   const workspaceId    = ws?.id ?? '…'
@@ -132,22 +184,6 @@ traceflow:
   <version>1.0.0</version>
 </dependency>`
 
-  const nodeInit = `import { TraceFlow, traceflowMiddleware } from '@traceflow/sdk'
-
-// Opção 1: via código
-TraceFlow.init({
-  serviceName: 'meu-servico',
-  apiKey: '${apiKey}',
-  collectorUrl: '${collectorUrl}',
-})
-
-// Opção 2: via variáveis de ambiente (recomendado)
-// TRACEFLOW_API_KEY=${apiKey}
-// TRACEFLOW_COLLECTOR_URL=${collectorUrl}
-TraceFlow.init({ serviceName: 'meu-servico' })
-
-// Adicione o middleware no Express
-app.use(traceflowMiddleware(TraceFlow.instance))`
 
   const nodeInstall = `npm install @traceflow/sdk`
 
@@ -210,6 +246,74 @@ services:
       TF_COLLECTOR_URL: "${collectorUrl}"
     ports:
       - "8080:8080"   # clientes apontam para cá`
+
+  const otelCollectorConfig = `# otel-collector-config.yaml
+exporters:
+  otlphttp/traceflow:
+    endpoint: ${collectorUrl}
+    headers:
+      x-api-key: "${apiKey}"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/traceflow]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/traceflow]`
+
+  const pyInstall = `pip install traceflow-sdk`
+  
+  const pyFastApi = `from fastapi import FastAPI
+from traceflow import TraceFlow
+from traceflow.integrations.fastapi import TraceFlowMiddleware
+
+TraceFlow.init(
+    service_name="my-fastapi",
+    api_key="${apiKey}",
+    collector_url="${collectorUrl}"
+)
+
+app = FastAPI()
+app.add_middleware(TraceFlowMiddleware)
+
+@app.get("/")
+def read_root():
+    return {"status": "ok"}`
+
+  const pyFlask = `from flask import Flask
+from traceflow import TraceFlow
+from traceflow.integrations.flask import TraceFlowFlask
+
+TraceFlow.init(
+    service_name="my-flask",
+    api_key="${apiKey}",
+    collector_url="${collectorUrl}"
+)
+
+app = Flask(__name__)
+TraceFlowFlask(app)
+
+@app.route("/")
+def index():
+    return {"status": "ok"}`
+
+  const pyDjango = `from traceflow import TraceFlow
+
+TraceFlow.init(
+    service_name="my-django",
+    api_key="${apiKey}",
+    collector_url="${collectorUrl}"
+)
+
+# In settings.py, add to MIDDLEWARE:
+MIDDLEWARE = [
+    # ...
+    'traceflow.integrations.django.TraceFlowMiddleware',
+]`
 
   if (loading) {
     return (
@@ -342,6 +446,94 @@ services:
           </div>
         </div>
 
+        {/* ── API Keys ── */}
+        <div className="glass-card" style={{ marginBottom: 24, padding: '20px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ color: 'var(--accent-primary)' }}><Key style={{ width: 16, height: 16 }} /></span>
+              <h2 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.03em' }}>API Keys</h2>
+            </div>
+            <button
+              onClick={() => setShowKeyForm(v => !v)}
+              className="btn-primary"
+              style={{ width: 'auto', padding: '6px 12px', gap: '6px', fontSize: '0.75rem', height: 'auto' }}
+            >
+              <Plus style={{ width: 14, height: 14 }} /> New Key
+            </button>
+          </div>
+
+          {showKeyForm && (
+            <form onSubmit={handleCreateKey} style={{ marginBottom: 24, padding: 16, background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label className="text-xs text-secondary font-medium uppercase" style={{ letterSpacing: '0.05em' }}>Key Name</label>
+                  <input
+                    type="text"
+                    value={newKeyName}
+                    onChange={e => setNewKeyName(e.target.value)}
+                    placeholder="e.g., Production, Staging"
+                    required
+                    className="glass-input"
+                  />
+                </div>
+                <button type="submit" className="btn-primary" style={{ width: 'auto' }}>Create</button>
+                <button type="button" onClick={() => setShowKeyForm(false)} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '10px 16px', borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 500 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)' }}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+
+          {createdKey && (
+            <div style={{ marginBottom: 24, padding: 16, background: 'rgba(169,220,118,0.1)', border: '1px solid rgba(169,220,118,0.3)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Check style={{ width: 16, height: 16 }} /> API Key created successfully!
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
+                Please copy this key now. You will not be able to see it again.
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <code style={{ flex: 1, padding: '10px 12px', background: 'rgba(0,0,0,0.4)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                  {createdKey}
+                </code>
+                <CopyButton text={createdKey} />
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {apiKeys.length === 0 ? (
+              <div className="text-sm text-muted">No API keys created yet.</div>
+            ) : (
+              apiKeys.map(k => (
+                <div key={k.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(0,0,0,0.15)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{k.name}</span>
+                      {k.revoked_at ? (
+                        <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(239, 68, 68, 0.15)', color: 'var(--error)' }}>REVOKED</span>
+                      ) : (
+                        <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(169,220,118,0.15)', color: 'var(--success)' }}>ACTIVE</span>
+                      )}
+                    </div>
+                    <code style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{k.key_prefix}••••••••••••</code>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                      Created: {new Date(k.created_at).toLocaleDateString()} · Last used: {k.last_used_at ? new Date(k.last_used_at).toLocaleDateString() : 'Never'}
+                    </div>
+                  </div>
+                  {!k.revoked_at && (
+                    <button onClick={() => handleRevokeKey(k.id)} style={{ padding: 8, background: 'transparent', border: 'none', color: 'var(--error)', cursor: 'pointer', opacity: 0.7, transition: 'opacity 0.2s' }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.7'} title="Revoke Key">
+                      <Trash2 style={{ width: 16, height: 16 }} />
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         {/* ── Getting Started ── */}
         <div className="glass-card" style={{ marginBottom: 24, padding: '20px 24px' }}>
           <SectionTitle icon={<Zap style={{ width: 16, height: 16 }} />} title="Getting Started" />
@@ -354,7 +546,9 @@ services:
               { id: 'node',    label: 'Node.js',     icon: <Terminal style={{ width: 13, height: 13 }} /> },
               { id: 'go',      label: 'Go',          icon: <Code style={{ width: 13, height: 13 }} /> },
               { id: 'ruby',    label: 'Ruby',        icon: <Package style={{ width: 13, height: 13 }} /> },
+              { id: 'python',  label: 'Python',      icon: <Terminal style={{ width: 13, height: 13 }} /> },
               { id: 'sidecar', label: 'Sidecar',     icon: <Box style={{ width: 13, height: 13 }} /> },
+              { id: 'otel',    label: 'OpenTelemetry',icon: <Activity style={{ width: 13, height: 13 }} /> },
               { id: 'curl',    label: 'cURL / Test', icon: <Globe style={{ width: 13, height: 13 }} /> },
             ] as const).map(t => (
               <button
@@ -511,6 +705,34 @@ services:
             </div>
           )}
 
+          {/* Python tab */}
+          {tab === 'python' && (
+            <div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+                O SDK Python intercepta requests e propaga contexto no FastAPI, Flask e Django.
+              </p>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.04em' }}>
+                Instalação
+              </div>
+              <CodeBlock code={pyInstall} lang="bash" />
+              
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, marginTop: 16, fontWeight: 600, letterSpacing: '0.04em' }}>
+                FastAPI
+              </div>
+              <CodeBlock code={pyFastApi} lang="python" />
+
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, marginTop: 16, fontWeight: 600, letterSpacing: '0.04em' }}>
+                Flask
+              </div>
+              <CodeBlock code={pyFlask} lang="python" />
+
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, marginTop: 16, fontWeight: 600, letterSpacing: '0.04em' }}>
+                Django
+              </div>
+              <CodeBlock code={pyDjango} lang="python" />
+            </div>
+          )}
+
           {/* cURL tab */}
           {tab === 'curl' && (
             <div>
@@ -525,6 +747,36 @@ services:
               }}>
                 <Check style={{ width: 14, height: 14, color: 'var(--success)', flexShrink: 0, marginTop: 1 }} />
                 Após executar, o log aparecerá em Traces → detalhe do trace com o trace_id <code style={{ fontFamily: 'monospace', color: 'var(--accent-primary)' }}>abc123def456</code>.
+              </div>
+            </div>
+          )}
+
+          {/* OpenTelemetry tab */}
+          {tab === 'otel' && (
+            <div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+                O TraceFlow tem suporte nativo a OpenTelemetry via <strong>OTLP/HTTP</strong>. Você pode enviar traces e logs diretamente do seu <code style={{ color: 'var(--text-primary)' }}>otel-collector</code> ou configurar o exporter diretamente na sua aplicação.
+              </p>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.04em' }}>
+                Opção 1: OTEL Collector (Recomendado)
+              </div>
+              <CodeBlock code={otelCollectorConfig} lang="yaml" />
+              
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, marginTop: 16, fontWeight: 600, letterSpacing: '0.04em' }}>
+                Opção 2: Via variáveis de ambiente (qualquer linguagem com OTEL)
+              </div>
+              <CodeBlock code={`OTEL_EXPORTER_OTLP_ENDPOINT="${collectorUrl}"
+OTEL_EXPORTER_OTLP_HEADERS="x-api-key=${apiKey}"
+OTEL_TRACES_EXPORTER="otlp"
+OTEL_LOGS_EXPORTER="otlp"`} lang="env" />
+
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px',
+                background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)',
+                borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 16
+              }}>
+                <Zap style={{ width: 14, height: 14, color: 'var(--accent-primary)', flexShrink: 0, marginTop: 1 }} />
+                Os endpoints <code style={{ fontFamily: 'monospace', color: 'var(--accent-primary)' }}>/v1/traces</code> e <code style={{ fontFamily: 'monospace', color: 'var(--accent-primary)' }}>/v1/logs</code> já estão embutidos na URL base acima, seguindo o padrão da especificação OTLP.
               </div>
             </div>
           )}

@@ -1,12 +1,13 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import { Activity, Server, Bell, LogOut, Zap, LayoutDashboard, Settings } from 'lucide-react'
+import { Activity, Server, Bell, LogOut, Zap, LayoutDashboard, Settings, Share2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 const links: { to: string; icon: React.ElementType; label: string; exact: boolean }[] = [
   { to: '/', icon: LayoutDashboard, label: 'Overview', exact: true },
   { to: '/traces', icon: Activity, label: 'Traces', exact: false },
   { to: '/services', icon: Server, label: 'Services', exact: false },
+  { to: '/topology', icon: Share2, label: 'Service Map', exact: false },
   { to: '/alerts', icon: Bell, label: 'Alerts', exact: false },
 ]
 

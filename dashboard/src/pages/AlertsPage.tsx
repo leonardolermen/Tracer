@@ -6,16 +6,22 @@ import { formatDate } from '../lib/utils'
 interface Alert {
   id: string
   name: string
-  condition: { type: string; service: string; threshold_ms: number; window_minutes: number }
-  channels: { type: string }[]
+  condition: { type: string; service: string; threshold_ms?: number; threshold?: number; window_minutes: number }
+  channels: { type: string; url?: string; address?: string }[]
   created_at: string
+  enabled: boolean
+  last_fired_at: string | null
+  fired_count: number
 }
 
 export function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', service: '', threshold_ms: '1000', window_minutes: '5' })
+  const [form, setForm] = useState({ 
+    name: '', service: '', conditionType: 'latency_p95', threshold: '1000', window_minutes: '5',
+    channelType: 'webhook', webhookUrl: '', emailAddress: ''
+  })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -42,17 +48,20 @@ export function AlertsPage() {
         },
         body: JSON.stringify({
           name: form.name,
+          enabled: true,
           condition: {
-            type: 'latency_p95',
+            type: form.conditionType,
             service: form.service,
-            threshold_ms: Number(form.threshold_ms),
+            threshold: Number(form.threshold),
             window_minutes: Number(form.window_minutes),
           },
-          channels: [],
+          channels: form.channelType === 'webhook' 
+            ? [{ type: 'webhook', url: form.webhookUrl }] 
+            : [{ type: 'email', address: form.emailAddress }],
         }),
       })
       setShowForm(false)
-      setForm({ name: '', service: '', threshold_ms: '1000', window_minutes: '5' })
+      setForm({ name: '', service: '', conditionType: 'latency_p95', threshold: '1000', window_minutes: '5', channelType: 'webhook', webhookUrl: '', emailAddress: '' })
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create alert')
@@ -90,24 +99,50 @@ export function AlertsPage() {
             {error && <div className="text-sm p-3" style={{ background: 'var(--error-bg)', color: 'var(--error)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-md)' }}>{error}</div>}
             
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
-              {[
-                { label: 'Alert Name', key: 'name', placeholder: 'Checkout slow', type: 'text' },
-                { label: 'Target Service', key: 'service', placeholder: 'checkout-service', type: 'text' },
-                { label: 'Latency Threshold (ms)', key: 'threshold_ms', placeholder: '1000', type: 'number' },
-                { label: 'Time Window (minutes)', key: 'window_minutes', placeholder: '5', type: 'number' },
-              ].map(({ label, key, placeholder, type }) => (
-                <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label className="text-xs text-secondary font-medium" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</label>
-                  <input
-                    type={type}
-                    value={form[key as keyof typeof form]}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    placeholder={placeholder}
-                    required
-                    className="glass-input"
-                  />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <label className="text-xs text-secondary font-medium uppercase" style={{ letterSpacing: '0.05em' }}>Alert Name</label>
+                <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Checkout slow" required className="glass-input" />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <label className="text-xs text-secondary font-medium uppercase" style={{ letterSpacing: '0.05em' }}>Target Service</label>
+                <input type="text" value={form.service} onChange={e => setForm(f => ({ ...f, service: e.target.value }))} placeholder="checkout-service" required className="glass-input" />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <label className="text-xs text-secondary font-medium uppercase" style={{ letterSpacing: '0.05em' }}>Condition Type</label>
+                <select value={form.conditionType} onChange={e => setForm(f => ({ ...f, conditionType: e.target.value }))} className="glass-input">
+                  <option value="latency_p95">P95 Latency</option>
+                  <option value="error_rate">Error Rate (%)</option>
+                  <option value="service_down">Service Down</option>
+                </select>
+              </div>
+
+              {form.conditionType !== 'service_down' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label className="text-xs text-secondary font-medium uppercase" style={{ letterSpacing: '0.05em' }}>Threshold {form.conditionType === 'latency_p95' ? '(ms)' : '(%)'}</label>
+                  <input type="number" value={form.threshold} onChange={e => setForm(f => ({ ...f, threshold: e.target.value }))} placeholder={form.conditionType === 'latency_p95' ? '1000' : '5'} required className="glass-input" />
                 </div>
-              ))}
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <label className="text-xs text-secondary font-medium uppercase" style={{ letterSpacing: '0.05em' }}>Channel Type</label>
+                <select value={form.channelType} onChange={e => setForm(f => ({ ...f, channelType: e.target.value }))} className="glass-input">
+                  <option value="webhook">Webhook</option>
+                  <option value="email">Email</option>
+                </select>
+              </div>
+
+              {form.channelType === 'webhook' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label className="text-xs text-secondary font-medium uppercase" style={{ letterSpacing: '0.05em' }}>Webhook URL</label>
+                  <input type="url" value={form.webhookUrl} onChange={e => setForm(f => ({ ...f, webhookUrl: e.target.value }))} placeholder="https://..." className="glass-input" required={form.channelType === 'webhook'} />
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label className="text-xs text-secondary font-medium uppercase" style={{ letterSpacing: '0.05em' }}>Email Address</label>
+                  <input type="email" value={form.emailAddress} onChange={e => setForm(f => ({ ...f, emailAddress: e.target.value }))} placeholder="admin@domain.com" className="glass-input" required={form.channelType === 'email'} />
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3" style={{ marginTop: '1rem' }}>
@@ -144,11 +179,17 @@ export function AlertsPage() {
                 <div className="flex-col gap-1">
                   <div className="text-base font-bold text-primary">{alert.name}</div>
                   <div className="text-sm text-secondary">
-                    Trigger when <strong style={{ color: 'var(--warning)' }}>p95 latency &gt; {alert.condition.threshold_ms}ms</strong> on 
+                    Trigger when <strong style={{ color: 'var(--warning)' }}>
+                      {alert.condition.type === 'latency_p95' && `p95 latency > ${alert.condition.threshold ?? alert.condition.threshold_ms}ms`}
+                      {alert.condition.type === 'error_rate' && `error rate > ${alert.condition.threshold}%`}
+                      {alert.condition.type === 'service_down' && `service is down`}
+                    </strong> on 
                     <span className="font-mono text-xs px-1 py-0.5 rounded ml-1 mr-1" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}>{alert.condition.service}</span> 
                     over {alert.condition.window_minutes}min window
                   </div>
-                  <div className="text-xs text-muted mt-1">Created on {formatDate(alert.created_at)}</div>
+                  <div className="text-xs text-muted mt-1">
+                    Created on {formatDate(alert.created_at)} · Last fired: {alert.last_fired_at ? formatDate(alert.last_fired_at) : 'Never'} · Count: {alert.fired_count ?? 0}
+                  </div>
                 </div>
                 <button 
                   onClick={() => handleDelete(alert.id)} 
