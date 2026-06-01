@@ -8,18 +8,18 @@ TraceFlow é uma plataforma de observabilidade que captura o **contexto completo
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Serviços do Cliente                       │
 │                                                                  │
-│  [core-service]        [fraud-service]       [api-gateway]      │
+│  [core-service]        [fraud-service]       [api-gateway]       │
 │  SDK TraceFlow         SDK TraceFlow         SDK TraceFlow       │
 │  (Node / Java / ...)   (Node / Java / ...)   (Node / Java / ...) │
-└──────────┬─────────────────────┬────────────────────┬───────────┘
-           │  HTTP /v1/spans      │  HTTP /v1/logs      │
+└──────────┬─────────────────────-┬────────────────────-┬───────────┘
+           │  HTTP /v1/spans      │  HTTP /v1/logs     │
            └──────────────────────┴────────────────────┘
                                   │
                            ┌──────▼──────┐
                            │  Coletor Go │  ← único ponto de entrada
                            │  porta 4317 │
                            └──────┬──────┘
-                                  │ Redis Pub/Sub
+                                  │ Redis Streams
                            ┌──────▼──────┐
                            │ Processador │  ← correlaciona spans
                            │     Go      │
@@ -44,9 +44,9 @@ TraceFlow é uma plataforma de observabilidade que captura o **contexto completo
 
 **Fire-and-forget no SDK.** O SDK nunca bloqueia a thread do serviço instrumentado. Spans são enviados de forma assíncrona. Se o coletor estiver indisponível, os eventos são descartados silenciosamente — observabilidade nunca pode derrubar a aplicação.
 
-**Coletor stateless.** O coletor não persiste nada localmente. Valida, enfileira no Redis e retorna `202 Accepted` imediatamente. Pode rodar em múltiplas réplicas sem coordenação.
+**Coletor quase stateless.** O coletor não persiste eventos localmente: valida, enfileira no Redis e retorna `202 Accepted` imediatamente. Mantém apenas um cache em memória de api-keys válidas (carregado da tabela `workspaces` e atualizado a cada `API_KEY_REFRESH_SECONDS`), então não há hit no banco por requisição. Pode rodar em múltiplas réplicas sem coordenação.
 
-**Separação de ingestão e processamento.** O coletor e o processador são processos distintos comunicando via Redis Pub/Sub. Isso permite escalar a ingestão independentemente do processamento.
+**Separação de ingestão e processamento.** O coletor e o processador são processos distintos comunicando via **Redis Streams** (`spans` e `logs`). O coletor faz `XADD` (com `MAXLEN ~1.000.000`) e o processador consome com um *consumer group* (`processors`) via `XREADGROUP` + `XACK`. Isso dá entrega durável e replayável: mensagens sobrevivem a reinicializações do processador e podem ser escaladas por múltiplos consumidores.
 
 **Contexto de negócio, não só infraestrutura.** O diferencial do TraceFlow é capturar o *body* da requisição, logs de eventos de negócio (`fraud.analysis.decision`, `payment.created`) e correlacioná-los com os spans técnicos. OTEL captura infraestrutura; TraceFlow captura a história do negócio.
 
@@ -71,12 +71,19 @@ Bibliotecas leves instaladas nos serviços do cliente. Cada SDK é específico p
 
 **SDKs disponíveis:**
 
-| SDK | Framework | Mecanismo de interceptação |
-|---|---|---|
-| `sdk-node` | Express.js | Middleware (`app.use`) |
-| `sdk-spring` | Spring Boot | `OncePerRequestFilter` |
+Legenda: ✅ produção · 🧪 beta · 🔲 planejado
 
-**Campos sensíveis redatados automaticamente:**
+| SDK | Framework | Mecanismo de interceptação | Status |
+|---|---|---|---|
+| `sdk-node` | Express.js | Middleware (`app.use`) | ✅ |
+| `sdk-spring` (`sdk-java`) | Spring Boot | `OncePerRequestFilter` | ✅ |
+| `sdk-go` | net/http | `Middleware(handler)` | 🧪 |
+| `sdk-csharp` | ASP.NET Core | `app.UseTraceFlow()` | 🧪 |
+| `sdk-ruby` | Rack | `use TraceFlow::Middleware` | 🧪 |
+
+> **Nota sobre os SDKs beta (`sdk-go`, `sdk-csharp`, `sdk-ruby`):** capturam request/response body com truncamento, mas ainda **não** implementam propagação de `trace_id` entre serviços, redatam apenas `password`/`token`/`cvv` (não a lista completa abaixo) e enviam um payload ad-hoc próprio que ainda não está alinhado ao contrato nativo de span. Use em produção apenas `sdk-node` e `sdk-spring`.
+
+**Campos sensíveis redatados automaticamente (sdk-node / sdk-spring):**
 `password`, `confirmPassword`, `token`, `secret`, `apiKey`, `authorization`, `cvv`, `cardNumber`, `ssn`, `cpf`, `pin`, `refreshToken`, `accessToken`
 
 ---
@@ -89,10 +96,15 @@ Processo Go de alta performance. Único ponto de entrada para todos os eventos.
 
 | Endpoint | Método | Formato | Descrição |
 |---|---|---|---|
-| `/v1/spans` | POST | JSON | Recebe spans de trace dos SDKs |
-| `/v1/logs` | POST | JSON | Recebe logs de negócio dos SDKs |
-| `/v1/traces` | POST | OTLP/JSON | Compatibilidade com OpenTelemetry |
-| `/health` | GET | JSON | Health check com métricas de ingestão |
+| `/spans` | POST | JSON (`SpanEvent`) | Recebe spans nativos dos SDKs (logs de negócio vão embutidos em `logs[]`) |
+| `/v1/traces` | POST | OTLP/JSON e protobuf | Compatibilidade com OpenTelemetry (traces) |
+| `/v1/logs` | POST | OTLP/JSON e protobuf | Compatibilidade com OpenTelemetry (logs) |
+| `/health` | GET | JSON | Health check — retorna `{"status":"ok"}` (não exige auth) |
+| `/metrics` | GET | Prometheus text | Contadores de ingestão: spans/logs recebidos e dropados, auth rejeitada, rate limited (não exige auth) |
+
+> **Autenticação:** todas as rotas de ingestão exigem o header `x-api-key` (validado contra a tabela `workspaces`); o `workspace_id` é derivado da chave e sobrescreve qualquer valor enviado no body. Há rate limit por workspace (`RATE_LIMIT_PER_MIN`, padrão 10.000/min, token bucket em memória). Se `DATABASE_URL` não estiver setado, o coletor sobe em modo dev sem auth.
+
+> O coletor também escuta UDP na porta `4318` (mesmo payload `SpanEvent` em JSON). Há um listener nativo de logs de negócio fora do padrão OTLP planejado, mas hoje os logs chegam embutidos no span via `/spans`.
 
 **Fluxo interno:**
 ```
@@ -108,15 +120,15 @@ collector/
   cmd/collector/       ← entry point
   internal/
     handler/
-      server.go        ← roteamento HTTP
-      logs.go          ← handler de /v1/logs
-      otlp.go          ← handler de /v1/traces (OTLP)
+      server.go        ← roteamento HTTP + listener UDP, handler de /spans
+      logs.go          ← handler OTLP de /v1/logs
+      otlp.go          ← handler OTLP de /v1/traces
     validator/
       span.go          ← validação + struct SpanEvent
     queue/
       queue.go         ← canal Go em memória
     publisher/
-      redis.go         ← publica no Redis Pub/Sub
+      redis.go         ← publica no Redis Streams (XADD)
 ```
 
 ---
@@ -126,7 +138,7 @@ collector/
 Processo Go que consome do Redis e persiste no TimescaleDB.
 
 **Responsabilidades:**
-- Consumir spans e logs do Redis Pub/Sub
+- Consumir spans e logs do Redis Streams via consumer group (`XREADGROUP` + `XACK`)
 - Persistir no TimescaleDB via `storage/timescale.go`
 - Não faz correlação em tempo real — a correlação acontece em query time na API
 
@@ -139,7 +151,7 @@ processor/
     storage/
       timescale.go     ← INSERT em spans e logs
     subscriber/
-      redis.go         ← consume do Redis
+      redis.go         ← consume do Redis Streams (consumer group)
 ```
 
 ---
@@ -215,8 +227,8 @@ CREATE TABLE spans (
 ### Tabela `logs`
 
 ```sql
-CREATE TABLE trace_logs (
-  id           TEXT NOT NULL,
+CREATE TABLE logs (
+  id           TEXT NOT NULL DEFAULT 'log_' || gen_random_uuid()::text,
   trace_id     TEXT NOT NULL,
   service_name TEXT NOT NULL,
   level        TEXT NOT NULL,          -- DEBUG | INFO | WARN | ERROR
@@ -280,8 +292,8 @@ CREATE TABLE trace_logs (
 10. fraud-service executa lógica, chama span.log("fraud.analysis.decision", {...})
 11. Resposta retorna, SDK fecha ambos os spans com ended_at e status
 12. SDK envia spans + logs ao coletor via HTTP POST assíncrono (fire-and-forget)
-13. Coletor valida, publica no Redis
-14. Processador consome do Redis, persiste no TimescaleDB
+13. Coletor valida, faz XADD no Redis Stream
+14. Processador consome via consumer group, persiste no TimescaleDB e dá XACK
 15. Usuário abre o dashboard → GET /api/v1/traces
 16. Dashboard renderiza timeline com offset proporcional de cada span
 17. Request Body Card mostra POST /payments com body sanitizado
@@ -294,7 +306,7 @@ CREATE TABLE trace_logs (
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  traceflow-timescaledb-1   porta 5432            │
+│  traceflow-timescaledb-1   5432 (host: 5433)     │
 │  traceflow-redis-1         porta 6379            │
 │  traceflow-collector-1     porta 4317            │
 │  traceflow-processor-1     (sem porta exposta)   │
@@ -305,15 +317,15 @@ CREATE TABLE trace_logs (
 
 **Dependências de startup:**
 - `api` e `processor` aguardam `timescaledb` (healthcheck) e `redis`
-- `collector` aguarda `redis`
+- `collector` aguarda `timescaledb` (healthcheck) e `redis`
 - `dashboard` aguarda `api`
 
 ---
 
 ## Segurança
 
-- **SDK → Coletor:** `workspace_id` no body identifica o workspace. Sem autenticação por chave no coletor (roadmap: `x-api-key`).
-- **Dashboard → API:** JWT com 24h de expiração assinado com `JWT_SECRET`.
+- **SDK → Coletor:** autenticação por `x-api-key` (header HTTP, ou campo `api_key` no payload UDP). A chave é validada contra a tabela `workspaces` via cache em memória do coletor, e o `workspace_id` é derivado dela (o valor do body é ignorado). Rate limit por workspace via token bucket (`RATE_LIMIT_PER_MIN`). Modo dev (sem `DATABASE_URL`) desativa a auth.
+- **Dashboard → API:** JWT (HS256) com 24h de expiração assinado com `JWT_SECRET`. Senhas são hasheadas com `bcrypt`. Cadastro via `POST /api/v1/auth/register` (cria workspace + usuário) e login via `POST /api/v1/auth/login`.
 - **Dados sensíveis:** Redação aplicada no SDK antes do envio. Nunca chegam ao coletor.
 - **Body truncado em 2KB** para evitar exfiltração acidental de payloads grandes.
 - **TLS em produção:** Responsabilidade do operador (self-hosted) ou gerenciado (SaaS roadmap).

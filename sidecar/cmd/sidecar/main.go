@@ -24,7 +24,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  TF_TARGET       Upstream URL  (e.g. http://my-service:8080)\n")
 		fmt.Fprintf(os.Stderr, "  TF_SERVICE_NAME Service name  (e.g. core-service)\n\n")
 		fmt.Fprintf(os.Stderr, "Optional env vars:\n")
-		fmt.Fprintf(os.Stderr, "  TF_WORKSPACE_ID      TraceFlow workspace ID   (default: ws_dev)\n")
+		fmt.Fprintf(os.Stderr, "  TF_API_KEY           TraceFlow API key\n")
 		fmt.Fprintf(os.Stderr, "  TF_COLLECTOR_URL     Collector URL            (default: http://localhost:4317)\n")
 		fmt.Fprintf(os.Stderr, "  TF_PORT              Listen port              (default: 8080)\n")
 		fmt.Fprintf(os.Stderr, "  TF_MAX_BODY_BYTES    Max body capture size    (default: 2048)\n")
@@ -79,7 +79,6 @@ func main() {
 		"listening", addr,
 		"target", cfg.TargetURL,
 		"service", cfg.ServiceName,
-		"workspace", cfg.WorkspaceID,
 		"collector", cfg.CollectorURL,
 	)
 

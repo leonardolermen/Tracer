@@ -109,18 +109,19 @@ export function SettingsPage() {
   }
 
   const workspaceId    = ws?.id ?? '…'
+  const apiKey         = ws?.api_key ?? ''
   const collectorHost  = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname
   const collectorUrl   = `http://${collectorHost}:4317`
   const connected      = services.length > 0
-  const maskedKey      = ws?.api_key
-    ? ws.api_key.replace(/^(tf_live_).{4}/, '$1••••').replace(/.{4}$/, '••••')
+  const maskedKey      = apiKey
+    ? apiKey.replace(/^(tf_live_).{4}/, '$1••••').replace(/.{4}$/, '••••')
     : ''
 
   // ── Snippets ─────────────────────────────────────────────────────────────────
   const springYml = `# application.yml
 traceflow:
   collector-url: ${collectorUrl}
-  workspace-id: ${workspaceId}
+  api-key: ${apiKey}
   capture-http-body: true
   redact-sensitive-fields: true`
 
@@ -136,12 +137,12 @@ traceflow:
 // Opção 1: via código
 TraceFlow.init({
   serviceName: 'meu-servico',
-  workspaceId: '${workspaceId}',
+  apiKey: '${apiKey}',
   collectorUrl: '${collectorUrl}',
 })
 
 // Opção 2: via variáveis de ambiente (recomendado)
-// TRACEFLOW_WORKSPACE_ID=${workspaceId}
+// TRACEFLOW_API_KEY=${apiKey}
 // TRACEFLOW_COLLECTOR_URL=${collectorUrl}
 TraceFlow.init({ serviceName: 'meu-servico' })
 
@@ -151,18 +152,18 @@ app.use(traceflowMiddleware(TraceFlow.instance))`
   const nodeInstall = `npm install @traceflow/sdk`
 
   const envFile = `# .env
-TRACEFLOW_WORKSPACE_ID=${workspaceId}
+TRACEFLOW_API_KEY=${apiKey}
 TRACEFLOW_COLLECTOR_URL=${collectorUrl}`
 
   const curlTest = `curl -X POST ${collectorUrl}/v1/logs \\
   -H "Content-Type: application/json" \\
+  -H "x-api-key: ${apiKey}" \\
   -d '{
     "id": "test-log-1",
     "trace_id": "abc123def456",
     "service_name": "meu-servico",
     "level": "INFO",
     "message": "Hello TraceFlow! 🚀",
-    "workspace_id": "${workspaceId}",
     "timestamp": "${new Date().toISOString()}"
   }'`
 
@@ -205,7 +206,7 @@ services:
     environment:
       TF_TARGET:        "http://meu-servico:8080"  # upstream
       TF_SERVICE_NAME:  "meu-servico"              # nome no TraceFlow
-      TF_WORKSPACE_ID:  "${workspaceId}"
+      TF_API_KEY:       "${apiKey}"
       TF_COLLECTOR_URL: "${collectorUrl}"
     ports:
       - "8080:8080"   # clientes apontam para cá`

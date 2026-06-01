@@ -29,12 +29,16 @@ export interface SpanEvent {
   error?: SpanError
   tags: Record<string, string>
   logs?: SpanLog[]
-  workspace_id: string
+  workspace_id?: string
+  api_key?: string
 }
 
 export interface TraceFlowConfig {
   serviceName: string
-  workspaceId: string
+  /** Your workspace api-key (tf_live_...). The collector derives the workspace from it. */
+  apiKey?: string
+  /** Optional. Only used in dev mode when no api-key is configured. */
+  workspaceId?: string
   collectorUrl?: string
   collectorHost?: string
   collectorUdpPort?: number

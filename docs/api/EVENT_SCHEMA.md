@@ -1,8 +1,41 @@
 # Schema de Eventos — TraceFlow
 
-Todos os eventos enviados pelo SDK ao coletor seguem este schema. O campo `schema_version` permite que o coletor aceite versões anteriores sem quebrar.
+> ⚠️ **Status:** O envelope versionado descrito abaixo (`schema_version` / `event_type` / `payload`) é o **alvo planejado** e ainda **não** é o formato aceito pelo coletor. Hoje o coletor recebe um **`SpanEvent` único** (objeto plano com `logs[]` embutidos) em `POST /spans`. Veja "Formato nativo implementado" logo abaixo.
 
-**Versão atual:** `1`
+## Formato nativo implementado (`POST /spans`)
+
+O SDK envia um objeto JSON único por span. Logs de negócio vão embutidos no array `logs[]` — o coletor os extrai e roteia para a tabela `logs`.
+
+```json
+{
+  "id": "span_abc123",
+  "trace_id": "trace_xyz789",
+  "parent_id": null,
+  "service_name": "core-service",
+  "operation_name": "POST /payments",
+  "kind": "server",
+  "started_at": "2026-05-27T16:01:04.000Z",
+  "ended_at": "2026-05-27T16:01:04.566Z",
+  "duration_ms": 566,
+  "status": "ok",
+  "error": { "type": "TimeoutError", "message": "...", "code": "ETIMEDOUT" },
+  "tags": { "http.method": "POST" },
+  "logs": [
+    { "level": "INFO", "message": "http.request", "attributes": { "body.amount": "500.00" }, "timestamp": "2026-05-27T16:01:04.001Z" }
+  ],
+  "workspace_id": "ws_dev"
+}
+```
+
+Validação do coletor (`collector/internal/validator/span.go`): `id`, `trace_id`, `service_name`, `operation_name`, `kind`, `started_at`, `status` e `workspace_id` são obrigatórios. `kind` ∈ {server, client, producer, consumer, internal}. `status` ∈ {ok, error, timeout, in_progress}. Logs embutidos exigem `level` ∈ {DEBUG, INFO, WARN, ERROR}.
+
+---
+
+## Envelope versionado (planejado)
+
+O restante deste documento descreve o protocolo versionado planejado. O campo `schema_version` permitirá que o coletor aceite versões anteriores sem quebrar.
+
+**Versão alvo:** `1`
 
 ---
 
@@ -249,7 +282,7 @@ O coletor rejeita eventos que violem estes limites:
 | Tamanho máximo de valor de tag | 256 chars |
 | Tamanho máximo de `error.message` | 1024 chars |
 | Tamanho máximo de `error.stack` | 4096 chars |
-| Rate limit por `api-key` | 10.000 eventos/minuto |
+| Rate limit por `api-key` | 10.000 eventos/minuto (token bucket por workspace; configurável via `RATE_LIMIT_PER_MIN`) |
 
 Eventos rejeitados retornam `400 Bad Request` com corpo:
 ```json

@@ -7,20 +7,26 @@ import (
 )
 
 type Config struct {
-	Port      string
-	UDPPort   string
-	RedisURL  string
-	LogLevel  slog.Level
-	QueueSize int
+	Port              string
+	UDPPort           string
+	RedisURL          string
+	LogLevel          slog.Level
+	QueueSize         int
+	DatabaseURL       string
+	RateLimitPerMin   int
+	KeyRefreshSeconds int
 }
 
 func Load() *Config {
 	return &Config{
-		Port:      getEnv("PORT", "4317"),
-		UDPPort:   getEnv("UDP_PORT", "4318"),
-		RedisURL:  getEnv("REDIS_URL", "redis://localhost:6379"),
-		LogLevel:  parseLogLevel(getEnv("LOG_LEVEL", "info")),
-		QueueSize: getEnvInt("QUEUE_SIZE", 10000),
+		Port:              getEnv("PORT", "4317"),
+		UDPPort:           getEnv("UDP_PORT", "4318"),
+		RedisURL:          getEnv("REDIS_URL", "redis://localhost:6379"),
+		LogLevel:          parseLogLevel(getEnv("LOG_LEVEL", "info")),
+		QueueSize:         getEnvInt("QUEUE_SIZE", 10000),
+		DatabaseURL:       getEnv("DATABASE_URL", ""),
+		RateLimitPerMin:   getEnvInt("RATE_LIMIT_PER_MIN", 10000),
+		KeyRefreshSeconds: getEnvInt("API_KEY_REFRESH_SECONDS", 30),
 	}
 }
 

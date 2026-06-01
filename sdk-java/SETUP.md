@@ -37,7 +37,7 @@ O SDK já irá capturar e instrumentar tudo, mas precisa saber para qual servido
 ```yaml
 traceflow:
   collector-url: http://seu-collector:4317
-  workspace-id: ws_seu_workspace
+  api-key: tf_live_sua_chave   # o coletor deriva o workspace dela
   capture-http-body: true
   redact-sensitive-fields: true
   enabled: true

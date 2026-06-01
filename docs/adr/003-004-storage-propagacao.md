@@ -58,6 +58,12 @@ CREATE INDEX ON spans (trace_id, started_at DESC);
 CREATE INDEX ON spans (workspace_id, service_name, started_at DESC);
 ```
 
+## Retenção e compressão (implementado)
+
+A migration `003_retention_compression.sql` ativa compressão (`compress_segmentby = workspace_id`) com política de compressão para chunks com mais de 7 dias e política de retenção descartando chunks com mais de 90 dias, tanto em `spans` quanto em `logs`.
+
+As políticas do Timescale são globais por hypertable. A diferenciação por plano (free 7d vs paid 90d) é aplicada na camada de aplicação sobre esse teto global de 90 dias, garantindo que dados de planos pagos nunca sejam descartados prematuramente.
+
 ---
 
 # ADR-004 — Estratégia de propagação de trace-id

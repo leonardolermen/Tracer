@@ -20,6 +20,9 @@ type SpanEvent struct {
 	Tags          map[string]string `json:"tags,omitempty"`
 	Logs          []EmbeddedLog     `json:"logs,omitempty"`
 	WorkspaceID   string            `json:"workspace_id"`
+	// APIKey is only used to authenticate spans arriving over UDP (which has no
+	// headers). It is cleared before the span is published downstream.
+	APIKey string `json:"api_key,omitempty"`
 }
 
 type SpanError struct {

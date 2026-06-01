@@ -41,7 +41,6 @@ function RequestBodyCard({ logs, rootService }: { logs: TraceLog[], rootService?
     : undefined
 
   if (!reqLog) return null
-  const renderService = reqLog.service_name
 
   const method  = reqLog.attributes?.['http.method'] ?? ''
   const url     = reqLog.attributes?.['http.url'] ?? ''

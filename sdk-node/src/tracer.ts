@@ -7,13 +7,21 @@ import { UdpTransport } from './transport/udp'
 type AnyTransport = { send(span: ReturnType<Span['toEvent']>): void | Promise<void> }
 
 export class Tracer {
-  private readonly config: Required<Pick<TraceFlowConfig, 'serviceName' | 'workspaceId' | 'transport' | 'disabled'>>
+  private readonly config: Required<Pick<TraceFlowConfig, 'serviceName' | 'transport' | 'disabled'>> & {
+    workspaceId?: string
+    apiKey?: string
+  }
   private readonly transport: AnyTransport
 
   constructor(config: TraceFlowConfig) {
+    const apiKey = config.apiKey
+      ?? (typeof process !== 'undefined' ? process.env.TRACEFLOW_API_KEY : undefined)
+
+    // The collector derives the workspace from the api-key. workspaceId is only
+    // a fallback for dev mode (collector running without api-key auth).
     const workspaceId = config.workspaceId
       ?? (typeof process !== 'undefined' ? process.env.TRACEFLOW_WORKSPACE_ID : undefined)
-      ?? 'ws_dev'
+      ?? (apiKey ? undefined : 'ws_dev')
 
     const collectorUrl = config.collectorUrl
       ?? (typeof process !== 'undefined' ? process.env.TRACEFLOW_COLLECTOR_URL : undefined)
@@ -23,9 +31,14 @@ export class Tracer {
       ?? (typeof process !== 'undefined' ? process.env.TRACEFLOW_COLLECTOR_HOST : undefined)
       ?? 'localhost'
 
+    if (!apiKey && typeof console !== 'undefined') {
+      console.warn('[traceflow] no apiKey configured — set TRACEFLOW_API_KEY or pass apiKey. Falling back to dev mode.')
+    }
+
     this.config = {
       serviceName: config.serviceName,
       workspaceId,
+      apiKey,
       transport: config.transport ?? 'http',
       disabled: config.disabled ?? false,
     }
@@ -33,10 +46,11 @@ export class Tracer {
     if (config.transport === 'udp') {
       this.transport = new UdpTransport(
         collectorHost,
-        config.collectorUdpPort ?? 4318
+        config.collectorUdpPort ?? 4318,
+        apiKey
       )
     } else {
-      this.transport = new HttpTransport(collectorUrl)
+      this.transport = new HttpTransport(collectorUrl, apiKey)
     }
   }
 

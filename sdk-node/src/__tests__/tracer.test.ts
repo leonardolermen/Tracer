@@ -90,4 +90,17 @@ describe('Tracer', () => {
     expect(event.service_name).toBe('test-svc')
     expect(event.workspace_id).toBe('ws_test')
   })
+
+  it('omits workspace_id when only an apiKey is configured', async () => {
+    const tracer = new Tracer({
+      serviceName: 'test-svc',
+      apiKey: 'tf_live_abc',
+      collectorUrl: 'http://localhost:4317',
+    })
+    tracer.startSpan('op').end()
+
+    await new Promise(r => setTimeout(r, 10))
+    const event = mockSend.mock.calls[0][0]
+    expect(event.workspace_id).toBeUndefined()
+  })
 })

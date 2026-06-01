@@ -78,7 +78,6 @@ type spanEvent struct {
 	Status        string            `json:"status"`
 	Tags          map[string]string `json:"tags"`
 	Logs          []spanLog         `json:"logs,omitempty"`
-	WorkspaceID   string            `json:"workspace_id"`
 }
 
 // ── Tracer ─────────────────────────────────────────────────────────────────────
@@ -182,7 +181,6 @@ func (t *Tracer) CaptureSpan(
 		Status:        status,
 		Tags:          tags,
 		Logs:          logs,
-		WorkspaceID:   t.cfg.WorkspaceID,
 	}
 
 	// ── Ship async ────────────────────────────────────────────────────────────
@@ -197,7 +195,16 @@ func (t *Tracer) ship(event spanEvent) {
 	}
 
 	url := strings.TrimRight(t.cfg.CollectorURL, "/") + "/v1/spans"
-	resp, err := t.client.Post(url, "application/json", bytes.NewReader(body))
+	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	if err != nil {
+		slog.Error("tracer: failed to create request", "err", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if t.cfg.APIKey != "" {
+		req.Header.Set("x-api-key", t.cfg.APIKey)
+	}
+	resp, err := t.client.Do(req)
 	if err != nil {
 		slog.Debug("tracer: failed to send span (collector unavailable)", "err", err)
 		return

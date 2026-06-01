@@ -10,6 +10,8 @@ import { AlertsPage } from './pages/AlertsPage'
 import { HomePage } from './pages/HomePage'
 import { SettingsPage } from './pages/SettingsPage'
 
+import { RegisterPage } from './pages/RegisterPage'
+
 function Layout() {
   const { token } = useAuth()
   if (!token) return <Navigate to="/login" replace />
@@ -39,6 +41,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/*" element={<Layout />} />
         </Routes>
       </AuthProvider>

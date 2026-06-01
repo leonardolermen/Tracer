@@ -10,8 +10,11 @@ import (
 )
 
 const (
-	redisSpanChannel = "spans"
-	redisLogChannel  = "logs"
+	redisSpanStream = "spans"
+	redisLogStream  = "logs"
+	// streamMaxLen caps each stream length (approximate) to bound Redis memory
+	// while still providing durable, replayable delivery to the processor.
+	streamMaxLen = 1_000_000
 )
 
 type Publisher struct {
@@ -45,8 +48,13 @@ func (p *Publisher) Run(ctx context.Context) {
 				slog.Error("failed to marshal span", "error", err)
 				continue
 			}
-			if err := p.client.Publish(ctx, redisSpanChannel, payload).Err(); err != nil {
-				slog.Error("failed to publish span to redis", "error", err)
+			if err := p.client.XAdd(ctx, &redis.XAddArgs{
+				Stream: redisSpanStream,
+				MaxLen: streamMaxLen,
+				Approx: true,
+				Values: map[string]interface{}{"data": payload},
+			}).Err(); err != nil {
+				slog.Error("failed to xadd span to redis", "error", err)
 			}
 		case log := <-p.queue.LogChan():
 			payload, err := json.Marshal(log)
@@ -54,8 +62,13 @@ func (p *Publisher) Run(ctx context.Context) {
 				slog.Error("failed to marshal log", "error", err)
 				continue
 			}
-			if err := p.client.Publish(ctx, redisLogChannel, payload).Err(); err != nil {
-				slog.Error("failed to publish log to redis", "error", err)
+			if err := p.client.XAdd(ctx, &redis.XAddArgs{
+				Stream: redisLogStream,
+				MaxLen: streamMaxLen,
+				Approx: true,
+				Values: map[string]interface{}{"data": payload},
+			}).Err(); err != nil {
+				slog.Error("failed to xadd log to redis", "error", err)
 			}
 		}
 	}

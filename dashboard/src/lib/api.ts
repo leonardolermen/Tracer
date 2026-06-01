@@ -40,6 +40,12 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
 
+  register: (email: string, password: string, workspaceName: string) =>
+    req<{ token: string; workspace: WorkspaceInfo }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, workspaceName }),
+    }),
+
   me: () => req<{ workspace: WorkspaceInfo; email: string }>('/auth/me'),
 
   traces: (params: Record<string, string | number | undefined> = {}) => {

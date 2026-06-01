@@ -14,8 +14,8 @@ type Config struct {
 	// Name of the service being proxied (required)
 	ServiceName string
 
-	// TraceFlow workspace ID
-	WorkspaceID string
+	// TraceFlow API key
+	APIKey string
 
 	// TraceFlow collector HTTP URL
 	CollectorURL string
@@ -78,7 +78,7 @@ func Load() (*Config, error) {
 	return &Config{
 		TargetURL:          target,
 		ServiceName:        serviceName,
-		WorkspaceID:        envOr("TF_WORKSPACE_ID", "ws_dev"),
+		APIKey:             envOr("TF_API_KEY", ""),
 		CollectorURL:       envOr("TF_COLLECTOR_URL", "http://localhost:4317"),
 		Port:               port,
 		MaxBodyBytes:       maxBody,

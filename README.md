@@ -24,7 +24,7 @@ docker compose up -d
 ```
 
 Dashboard disponível em **http://localhost:5173**  
-Login padrão: qualquer e-mail/senha (ou crie via script abaixo)
+Não há login padrão — crie uma conta via `POST /api/v1/auth/register` ou pelo script abaixo. As senhas são validadas com `bcrypt`.
 
 ### 2. Crie sua conta
 
@@ -35,24 +35,28 @@ node scripts/create-user.js --email dev@empresa.com --password senha123 --worksp
 ### 3. Integre seu serviço
 
 Acesse **Settings** no dashboard e copie o snippet para sua linguagem.
-Seu `workspaceId` e a URL do coletor já estarão preenchidos.
+Sua `api-key` e a URL do coletor já estarão preenchidos.
 
 ## Integração
 
-O TraceFlow suporta múltiplas linguagens e abordagens. Todos os SDKs listados abaixo possuem:
+O TraceFlow suporta múltiplas linguagens e abordagens. Os SDKs de produção (✅) possuem:
 - Captura automática de Request/Response Body
 - Redação automática de campos sensíveis (`password`, `token`, etc)
 - Propagação de Trace entre serviços
 
-### SDKs Oficiais
+Os SDKs beta (🧪) capturam body com redação parcial, mas ainda não propagam o `trace_id` entre serviços.
 
-| Linguagem / Plataforma | Pacote | Setup |
-|---|---|---|
-| **Java (Spring Boot)** | `traceflow-spring-boot-starter` | Dependência Maven + `application.yml` |
-| **Node.js (Express)** | `@traceflow/sdk` | Middleware `app.use(traceflowMiddleware)` |
-| **.NET / C#** | `TraceFlow.Sdk` | `app.UseTraceFlow()` no `Program.cs` |
-| **Go** | `github.com/traceflow/sdk-go` | Envolver handler: `traceflow.Middleware(h)` |
-| **Ruby (Rack)** | `traceflow-sdk` | Middleware: `config.middleware.use TraceFlow::Middleware` |
+### SDKs
+
+Legenda: ✅ produção · 🧪 beta (body capture funciona, mas **sem** propagação de trace e com redação parcial)
+
+| Linguagem / Plataforma | Pacote | Setup | Status |
+|---|---|---|---|
+| **Java (Spring Boot)** | `traceflow-spring-boot-starter` | Dependência Maven + `application.yml` | ✅ |
+| **Node.js (Express)** | `@traceflow/sdk` | Middleware `app.use(traceflowMiddleware)` | ✅ |
+| **.NET / C#** | `TraceFlow.Sdk` | `app.UseTraceFlow()` no `Program.cs` | 🧪 |
+| **Go** | `github.com/traceflow/sdk-go` | Envolver handler: `traceflow.Middleware(h)` | 🧪 |
+| **Ruby (Rack)** | `traceflow-sdk` | Middleware: `config.middleware.use TraceFlow::Middleware` | 🧪 |
 
 Acesse a aba **Settings** no dashboard para ver os snippets completos de integração.
 
@@ -69,7 +73,7 @@ my-service-sidecar:
   environment:
     TF_TARGET: "http://my-service:8080"
     TF_SERVICE_NAME: "my-service"
-    TF_WORKSPACE_ID: "ws_seu_workspace_id"
+    TF_API_KEY: "tf_live_sua_chave"
   ports: ["8080:8080"]
 ```
 
@@ -86,15 +90,15 @@ npm install @traceflow/sdk
 ```typescript
 import { TraceFlow, traceflowMiddleware } from '@traceflow/sdk'
 
-TraceFlow.init({ serviceName: 'meu-servico' })
-// workspaceId e collectorUrl lidos das variáveis de ambiente automaticamente
+TraceFlow.init({ serviceName: 'meu-servico', apiKey: 'tf_live_sua_chave' })
+// apiKey e collectorUrl também podem vir das variáveis de ambiente automaticamente
 
 app.use(traceflowMiddleware(TraceFlow.instance))
 ```
 
 ```bash
 # .env
-TRACEFLOW_WORKSPACE_ID=ws_seu_workspace_id
+TRACEFLOW_API_KEY=tf_live_sua_chave
 TRACEFLOW_COLLECTOR_URL=http://localhost:4317
 ```
 
@@ -104,7 +108,7 @@ TRACEFLOW_COLLECTOR_URL=http://localhost:4317
 
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `TRACEFLOW_WORKSPACE_ID` | `ws_dev` | ID do seu workspace |
+| `TRACEFLOW_API_KEY` | — | Sua api-key (`tf_live_...`); o coletor deriva o workspace dela |
 | `TRACEFLOW_COLLECTOR_URL` | `http://localhost:4317` | URL do coletor (HTTP) |
 | `TRACEFLOW_COLLECTOR_HOST` | `localhost` | Host do coletor (UDP) |
 
@@ -114,10 +118,11 @@ TRACEFLOW_COLLECTOR_URL=http://localhost:4317
 
 | Endpoint | Método | Descrição |
 |---|---|---|
-| `/v1/spans` | POST | Envia spans de trace |
-| `/v1/logs` | POST | Envia logs de negócio |
+| `/spans` | POST | Envia spans nativos (logs de negócio embutidos em `logs[]`) |
 | `/v1/traces` | POST | OTLP traces (Micrometer, OpenTelemetry) |
+| `/v1/logs` | POST | OTLP logs (OpenTelemetry) |
 | `/health` | GET | Health check |
+| `/metrics` | GET | Métricas Prometheus de ingestão (recebidos/dropados, auth, rate limit) |
 
 ---
 
@@ -154,6 +159,6 @@ TRACEFLOW_COLLECTOR_URL=http://localhost:4317
 | Dashboard — Timeline | ✅ Produção |
 | Dashboard — Logs correlacionados | ✅ Produção |
 | Dashboard — Settings / Getting Started | ✅ Produção |
+| SDK Go / C# / Ruby | 🧪 Beta (sem propagação de trace) |
 | SDK Python | 🔲 Roadmap |
-| SDK Go | 🔲 Roadmap |
 | Alertas em tempo real | 🔄 Em progresso |

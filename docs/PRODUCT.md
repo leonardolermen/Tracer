@@ -48,9 +48,12 @@ Uma transação de pagamento passa por 4 serviços em 566ms e falha no último. 
 - API Node.js — REST com autenticação JWT
 - Dashboard React — timeline, logs, filtros, settings
 
-**SDKs:**
+**SDKs (produção):**
 - `sdk-node` — Express.js middleware, captura automática de body + logs de negócio
 - `traceflow-spring-boot-starter` — Spring Boot `OncePerRequestFilter`, zero código no controller
+
+**SDKs (beta — body capture parcial, sem propagação de trace):**
+- `sdk-go`, `sdk-csharp`, `sdk-ruby`
 
 **Features do Dashboard:**
 - Timeline visual proporcional dos spans por serviço
@@ -65,12 +68,12 @@ Uma transação de pagamento passa por 4 serviços em 566ms e falha no último. 
 ## Roadmap
 
 ### v1.1 — Mais SDKs
-Expandir cobertura de linguagens para reduzir fricção de adoção:
+Expandir cobertura de linguagens e levar os SDKs beta a paridade com Node/Spring (propagação de trace + redação completa):
 
+- [~] SDK Go (Gin + Echo) — *beta: body capture ok, falta propagação*
+- [~] SDK Ruby (Rails + Sinatra via Rack) — *beta: body capture ok, falta propagação*
+- [~] SDK C# (ASP.NET Core) — *beta: body capture ok, falta propagação*
 - [ ] SDK Python (FastAPI + Django)
-- [ ] SDK Ruby (Rails + Sinatra via Rack)
-- [ ] SDK C# (ASP.NET Core)
-- [ ] SDK Go (Gin + Echo)
 - [ ] SDK Java Quarkus (extensão Quarkus)
 
 ### v1.2 — Qualidade de Dados

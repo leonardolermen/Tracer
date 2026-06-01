@@ -41,8 +41,13 @@ services:
       PORT: "4317"
       UDP_PORT: "4318"
       REDIS_URL: "redis://redis:6379"
+      DATABASE_URL: "postgres://traceflow:traceflow@timescaledb:5432/traceflow"
+      RATE_LIMIT_PER_MIN: "10000"
+      API_KEY_REFRESH_SECONDS: "30"
       LOG_LEVEL: "info"
     depends_on:
+      timescaledb:
+        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -112,7 +117,7 @@ volumes:
 #     environment:
 #       TF_TARGET:        "http://my-service:8080"    # upstream
 #       TF_SERVICE_NAME:  "my-service"                # name in TraceFlow
-#       TF_WORKSPACE_ID:  "ws_your_workspace_id"      # from Settings page
+#       TF_API_KEY:       "your_api_key_here"         # from Settings page
 #       TF_COLLECTOR_URL: "http://collector:4317"      # or your hosted URL
 #     ports:
 #       - "8080:8080"   # clients talk to the sidecar

@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <pre>
  * traceflow:
  *   collector-url: http://localhost:4317
- *   workspace-id: ws_your_workspace
+ *   api-key: tf_live_your_key   # the collector derives the workspace from it
  *   enabled: true
  * </pre>
  */
@@ -19,8 +19,11 @@ public class TraceFlowProperties {
     /** TraceFlow collector base URL. Default: http://localhost:4317 */
     private String collectorUrl = "http://localhost:4317";
 
-    /** Workspace ID registered in TraceFlow. */
-    private String workspaceId = "ws_dev";
+    /** Your workspace api-key (tf_live_...). The collector derives the workspace from it. */
+    private String apiKey;
+
+    /** Workspace ID. Optional: only used in dev mode when no api-key is configured. */
+    private String workspaceId;
 
     /** Service name override. Defaults to spring.application.name. */
     private String serviceName;
@@ -36,6 +39,8 @@ public class TraceFlowProperties {
 
     public String getCollectorUrl()                    { return collectorUrl; }
     public void setCollectorUrl(String v)              { this.collectorUrl = v; }
+    public String getApiKey()                          { return apiKey; }
+    public void setApiKey(String v)                    { this.apiKey = v; }
     public String getWorkspaceId()                     { return workspaceId; }
     public void setWorkspaceId(String v)               { this.workspaceId = v; }
     public String getServiceName()                     { return serviceName; }

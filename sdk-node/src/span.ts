@@ -8,7 +8,7 @@ export class Span {
   readonly serviceName: string
   readonly operationName: string
   readonly kind: SpanKind
-  readonly workspaceId: string
+  readonly workspaceId?: string
   readonly startedAt: Date
 
   private endedAt?: Date
@@ -26,7 +26,7 @@ export class Span {
     serviceName: string
     operationName: string
     kind: SpanKind
-    workspaceId: string
+    workspaceId?: string
     tags?: Record<string, string>
     onEnd?: (span: Span) => void
   }) {
@@ -100,7 +100,7 @@ export class Span {
       error: this._error,
       tags: this._tags,
       logs: this._logs,
-      workspace_id: this.workspaceId,
+      ...(this.workspaceId ? { workspace_id: this.workspaceId } : {}),
     }
   }
 }

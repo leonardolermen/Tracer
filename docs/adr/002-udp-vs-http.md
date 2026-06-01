@@ -30,3 +30,8 @@ TraceFlow.init({
 - Coletor precisa ouvir em duas portas (4317/HTTP, 4318/UDP)
 - UDP requer serialização mais compacta (MessagePack ao invés de JSON)
 - Documentação precisa deixar claro que UDP não garante entrega
+
+## Estado da implementação (atualizado)
+
+- HTTP (`POST /spans`) e o listener UDP na porta `4318` estão implementados (`collector/internal/handler/server.go`).
+- **Pendente:** o UDP hoje usa **JSON**, não MessagePack. A serialização compacta ainda não foi implementada.

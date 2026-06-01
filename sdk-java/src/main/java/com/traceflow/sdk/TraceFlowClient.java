@@ -27,25 +27,30 @@ public class TraceFlowClient {
 
     private final String logsEndpoint;
     private final String workspaceId;
+    private final String apiKey;
 
-    public TraceFlowClient(String collectorUrl, String workspaceId) {
+    public TraceFlowClient(String collectorUrl, String workspaceId, String apiKey) {
         String base = collectorUrl.endsWith("/")
                 ? collectorUrl.substring(0, collectorUrl.length() - 1)
                 : collectorUrl;
         this.logsEndpoint = base + "/v1/logs";
         this.workspaceId  = workspaceId;
+        this.apiKey       = apiKey;
     }
 
     /** Sends a single log entry asynchronously. Never throws. */
     public void sendLog(String traceId, String serviceName, String level,
                         String message, Map<String, String> attributes) {
         String json = toJson(traceId, serviceName, level, message, attributes);
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(logsEndpoint))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json))
-                .timeout(Duration.ofSeconds(3))
-                .build();
+                .timeout(Duration.ofSeconds(3));
+        if (apiKey != null && !apiKey.isBlank()) {
+            builder.header("x-api-key", apiKey);
+        }
+        HttpRequest request = builder.build();
 
         HTTP.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(res -> {
@@ -78,7 +83,9 @@ public class TraceFlowClient {
         appendStr(sb, "service_name", serviceName);                  sb.append(",");
         appendStr(sb, "level",        level != null ? level : "INFO"); sb.append(",");
         appendStr(sb, "message",      message);                      sb.append(",");
-        appendStr(sb, "workspace_id", workspaceId);                  sb.append(",");
+        if (workspaceId != null && !workspaceId.isBlank()) {
+            appendStr(sb, "workspace_id", workspaceId);              sb.append(",");
+        }
         appendStr(sb, "timestamp",    Instant.now().toString());     sb.append(",");
 
         sb.append("\"attributes\":{");

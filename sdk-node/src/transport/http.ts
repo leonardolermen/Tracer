@@ -1,12 +1,18 @@
 import { SpanEvent } from '../types'
 
 export class HttpTransport {
-  constructor(private readonly url: string) {}
+  constructor(
+    private readonly url: string,
+    private readonly apiKey?: string,
+  ) {}
 
   async send(span: SpanEvent): Promise<void> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (this.apiKey) headers['x-api-key'] = this.apiKey
+
     const res = await fetch(`${this.url}/spans`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(span),
     })
 

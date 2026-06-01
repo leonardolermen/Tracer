@@ -6,11 +6,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/leonardolermen/tracer/collector/internal/config"
 	"github.com/leonardolermen/tracer/collector/internal/handler"
+	"github.com/leonardolermen/tracer/collector/internal/keystore"
 	"github.com/leonardolermen/tracer/collector/internal/publisher"
 	"github.com/leonardolermen/tracer/collector/internal/queue"
+	"github.com/leonardolermen/tracer/collector/internal/ratelimit"
 )
 
 func main() {
@@ -33,7 +36,22 @@ func main() {
 	}
 	go pub.Run(ctx)
 
-	srv := handler.NewServer(cfg, q)
+	var keys *keystore.Store
+	if cfg.DatabaseURL != "" {
+		keys, err = keystore.New(ctx, cfg.DatabaseURL, time.Duration(cfg.KeyRefreshSeconds)*time.Second)
+		if err != nil {
+			slog.Error("failed to init api-key store", "error", err)
+			os.Exit(1)
+		}
+		go keys.Run(ctx)
+		slog.Info("api-key auth enabled", "refresh_seconds", cfg.KeyRefreshSeconds, "rate_limit_per_min", cfg.RateLimitPerMin)
+	} else {
+		slog.Warn("DATABASE_URL not set — collector running WITHOUT api-key auth (dev mode)")
+	}
+
+	limiter := ratelimit.New(cfg.RateLimitPerMin)
+
+	srv := handler.NewServer(cfg, q, keys, limiter)
 	go srv.ListenHTTP()
 	go srv.ListenUDP()
 

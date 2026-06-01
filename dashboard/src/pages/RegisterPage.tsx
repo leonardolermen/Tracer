@@ -4,11 +4,12 @@ import { useNavigate, Link } from 'react-router-dom'
 import { Zap } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
-export function LoginPage() {
-  const { login } = useAuth()
+export function RegisterPage() {
+  const { register } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [workspaceName, setWorkspaceName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -17,10 +18,10 @@ export function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      await login(email, password)
+      await register(email, password, workspaceName)
       navigate('/traces')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(err instanceof Error ? err.message : 'Registration failed')
     } finally {
       setLoading(false)
     }
@@ -39,7 +40,7 @@ export function LoginPage() {
             <Zap style={{ width: '32px', height: '32px', color: 'var(--accent-primary)' }} />
           </div>
           <span className="text-2xl font-bold text-primary" style={{ letterSpacing: '0.02em' }}>TraceFlow</span>
-          <span className="text-sm text-secondary text-center">Sign in to your workspace</span>
+          <span className="text-sm text-secondary text-center">Create a new workspace</span>
         </div>
 
         <form onSubmit={handleSubmit} className="glass-panel p-6" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -48,6 +49,18 @@ export function LoginPage() {
               {error}
             </div>
           )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label className="text-xs text-secondary font-medium" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Company / Workspace Name</label>
+            <input
+              type="text"
+              value={workspaceName}
+              onChange={e => setWorkspaceName(e.target.value)}
+              required
+              className="glass-input"
+              placeholder="Acme Corp"
+            />
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <label className="text-xs text-secondary font-medium" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email Address</label>
@@ -68,6 +81,7 @@ export function LoginPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
+              minLength={6}
               className="glass-input"
               placeholder="••••••••"
             />
@@ -79,14 +93,14 @@ export function LoginPage() {
             className="btn-primary"
             style={{ marginTop: '0.5rem', height: '44px' }}
           >
-            {loading ? 'Authenticating...' : 'Access Dashboard'}
+            {loading ? 'Creating Account...' : 'Sign Up'}
           </button>
 
           <div className="text-center mt-2">
             <span className="text-xs text-secondary">
-              Don't have an account?{' '}
-              <Link to="/register" style={{ color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 500 }}>
-                Sign Up
+              Already have an account?{' '}
+              <Link to="/login" style={{ color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 500 }}>
+                Sign In
               </Link>
             </span>
           </div>

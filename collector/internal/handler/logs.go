@@ -61,8 +61,12 @@ func otlpSeverityToLevel(severityText string) string {
 // ─── Handler ──────────────────────────────────────────────────────────────
 
 func (s *Server) handleOTLPLogs(w http.ResponseWriter, r *http.Request) {
-	// workspace_id can come from header, query param, or the JSON body itself
-	workspaceID := r.Header.Get("X-Workspace-Id")
+	// When api-key auth is on, the authenticated workspace is the source of truth.
+	// In dev mode it can come from header, query param, or the JSON body itself.
+	workspaceID, _ := workspaceFromContext(r.Context())
+	if workspaceID == "" {
+		workspaceID = r.Header.Get("X-Workspace-Id")
+	}
 	if workspaceID == "" {
 		workspaceID = r.URL.Query().Get("workspace_id")
 	}

@@ -9,6 +9,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string, workspaceName: string) => Promise<void>
   logout: () => void
 }
 
@@ -27,6 +28,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ token: res.token, workspaceName: res.workspace.name })
   }
 
+  async function register(email: string, password: string, workspaceName: string) {
+    const res = await api.register(email, password, workspaceName)
+    setToken(res.token)
+    localStorage.setItem('tf_workspace', res.workspace.name)
+    setState({ token: res.token, workspaceName: res.workspace.name })
+  }
+
   function logout() {
     clearToken()
     localStorage.removeItem('tf_workspace')
@@ -34,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ ...state, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   )

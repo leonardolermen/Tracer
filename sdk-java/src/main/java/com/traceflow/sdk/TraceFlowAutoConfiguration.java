@@ -34,7 +34,11 @@ public class TraceFlowAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public TraceFlowClient traceFlowClient(TraceFlowProperties props) {
-        return new TraceFlowClient(props.getCollectorUrl(), props.getWorkspaceId());
+        // When an api-key is configured the collector derives the workspace from it,
+        // so we don't send workspace_id. workspaceId is only a dev-mode fallback.
+        boolean hasApiKey = props.getApiKey() != null && !props.getApiKey().isBlank();
+        String workspaceId = hasApiKey ? null : props.getWorkspaceId();
+        return new TraceFlowClient(props.getCollectorUrl(), workspaceId, props.getApiKey());
     }
 
     // ─── HTTP filter ──────────────────────────────────────────────────────────

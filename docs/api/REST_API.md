@@ -8,6 +8,17 @@ Todas as rotas requerem header `Authorization: Bearer {jwt}`, exceto `/auth/*`.
 
 ## Autenticação
 
+### `POST /auth/register`
+
+Cria um workspace e o primeiro usuário. Senha hasheada com `bcrypt`.
+
+```json
+// Request
+{ "email": "dev@example.com", "password": "...", "workspaceName": "Minha Empresa" }
+
+// Response 200 — mesmo formato do login
+```
+
 ### `POST /auth/login`
 
 ```json
@@ -21,9 +32,20 @@ Todas as rotas requerem header `Authorization: Bearer {jwt}`, exceto `/auth/*`.
   "workspace": {
     "id": "ws_abc123",
     "name": "Minha Empresa",
-    "api_key": "tf_live_9f3a2c1b..."
+    "api_key": "tf_live_9f3a2c1b...",
+    "plan": "free",
+    "created_at": "2024-11-15T14:00:00Z"
   }
 }
+```
+
+### `GET /auth/me`
+
+Retorna o workspace do usuário autenticado.
+
+```json
+// Response 200
+{ "workspace": { "id": "ws_abc123", "name": "Minha Empresa", "api_key": "tf_live_...", "plan": "free", "created_at": "..." }, "email": "dev@example.com" }
 ```
 
 ---
@@ -132,6 +154,22 @@ Retorna o trace completo com todos os spans e o DAG computado.
       { "from": "span_9f3a2c1b", "to": "span_2a1b3c4d", "label": "http.client" }
     ]
   }
+}
+```
+
+---
+
+### `GET /traces/:trace_id/logs`
+
+Retorna os logs de negócio correlacionados ao trace, ordenados por `timestamp`.
+
+**Response 200:**
+
+```json
+{
+  "logs": [
+    { "id": "log_abc", "service_name": "fraud-service", "level": "INFO", "message": "fraud.analysis.decision", "attributes": { "score": "0.12" }, "timestamp": "2024-11-15T14:23:01.5Z" }
+  ]
 }
 ```
 
@@ -267,12 +305,14 @@ Remove um alerta.
 
 ### `ws://localhost:3000/ws`
 
-Conexão para receber traces e spans em tempo real.
+Conexão para receber spans em tempo real.
 
 **Autenticação:** envie o JWT como primeiro frame após conectar:
 ```json
 { "type": "auth", "token": "eyJhbGci..." }
 ```
+
+Resposta do servidor: `{ "type": "auth.ok" }` em sucesso, ou `{ "type": "auth.error", "message": "Invalid token" }` (a conexão é fechada).
 
 **Inscrição em um trace específico:**
 ```json
@@ -287,27 +327,15 @@ Conexão para receber traces e spans em tempo real.
 **Eventos recebidos pelo cliente:**
 
 ```json
-// Novo span chegou
+// Novo span chegou (implementado)
 {
   "type": "span.received",
   "trace_id": "trace_4e8d1a9f2b3c5e7d",
   "span": { ... }
 }
-
-// Trace concluído (todos os spans recebidos e correlacionados)
-{
-  "type": "trace.complete",
-  "trace": { ... }
-}
-
-// Alerta disparado
-{
-  "type": "alert.fired",
-  "alert_id": "alert_abc123",
-  "alert_name": "Checkout lento",
-  "trace_id": "trace_4e8d1a9f2b3c5e7d"
-}
 ```
+
+> **Planejado (ainda não emitido):** `trace.complete` (trace totalmente correlacionado) e `alert.fired` (alerta disparado). Hoje o servidor só repassa `span.received` para clientes inscritos via `subscribe` (por `trace_id`) ou `subscribe_service` (por `service`).
 
 ---
 

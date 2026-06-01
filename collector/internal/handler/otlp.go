@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/leonardolermen/tracer/collector/internal/metrics"
 	"github.com/leonardolermen/tracer/collector/internal/validator"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
@@ -91,9 +92,13 @@ func otlpStatusToTraceFlow(code int) string {
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 func (s *Server) handleOTLPTraces(w http.ResponseWriter, r *http.Request) {
-	workspaceID := r.Header.Get("X-Workspace-Id")
-	if workspaceID == "" {
-		workspaceID = r.URL.Query().Get("workspace_id")
+	workspaceID, ok := workspaceFromContext(r.Context())
+	if !ok {
+		// Dev mode (no api-key auth): fall back to header / query param.
+		workspaceID = r.Header.Get("X-Workspace-Id")
+		if workspaceID == "" {
+			workspaceID = r.URL.Query().Get("workspace_id")
+		}
 	}
 	if workspaceID == "" {
 		writeError(w, http.StatusBadRequest, "validation_error", "X-Workspace-Id header or workspace_id query param is required")
@@ -120,10 +125,12 @@ func (s *Server) handleOTLPTraces(w http.ResponseWriter, r *http.Request) {
 	accepted := 0
 	for _, span := range spans {
 		if !s.queue.Push(span) {
+			metrics.SpansDropped.Add(1)
 			slog.Warn("otlp: queue full, dropping span", "span_id", span.ID)
 			dropped++
 			continue
 		}
+		metrics.SpansReceived.Add(1)
 		slog.Debug("otlp span accepted", "span_id", span.ID, "trace_id", span.TraceID, "service", span.ServiceName)
 		accepted++
 	}
